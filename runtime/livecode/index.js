@@ -68,7 +68,6 @@ LiveCodeRuntime.prototype._onG2Status = function(status) {
 		case this.driver.STAT_SHUTDOWN:
 		case this.driver.STAT_PANIC:
 			return this.machine.die('A G2 exception has occurred. You must reboot your tool.');
-			break;
 		case this.driver.STAT_ALARM:
 			if(this._limit()) { return; }
 			break;
@@ -142,7 +141,7 @@ log.debug("Recieved livecode command: " + JSON.stringify(code));
 	switch(code.cmd) {
 		case 'start':
 //			this.startMotion(code.axis, code.speed);
-			this.startMotion(code.xloc, code.yloc);
+			this.startMotion(code.xloc, code.yloc, code.yloc, code.options);
 			break;
 
 		case 'stop':
@@ -171,19 +170,19 @@ LiveCodeRuntime.prototype.maintainMotion = function() {
  * If the tool is already moving, the flag is set to maintain that motion
  */
 //LiveCodeRuntime.prototype.startMotion = function(axis, speed) {
-LiveCodeRuntime.prototype.startMotion = function(xloc, yloc) {
+LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, options) {
 //var speed = 200;
 //var axis = "x";	
 //	var dir = speed < 0 ? -1.0 : 1.0;
 //	speed = Math.abs(speed);
-	// if(this.moving) {
-	// 	log.debug("startMotion: Already moving");
-	// 	if(axis === this.currentAxis && speed === this.currentSpeed) {
-	// 		this.maintainMotion();
-	// 	} else {
-	// 		// Deal with direction changes here
-	// 	}
-	// } else {
+// if(this.moving) {
+// 	log.debug("startMotion: Already moving");
+// 	if(axis === this.currentAxis && speed === this.currentSpeed) {
+// 		this.maintainMotion();
+// 	} else {
+// 		// Deal with direction changes here
+// 	}
+// } else {
 //		log.debug("startMotion: Not moving yet.");
 //		this.currentAxis = axis;
 //		this.currentSpeed = speed;
@@ -193,18 +192,24 @@ LiveCodeRuntime.prototype.startMotion = function(xloc, yloc) {
 //		this.moving = this.keep_moving = true;
 //		this.xMove = 100;
 //		this.yMove = 85;
-		this.xMove = xloc;
-		this.yMove = yloc;
-log.debug("liveStart-to: " + this.xMove + ", " + this.yMove);
-//log.debug("what is " + this.toString());
-  	    move = ('G0 X' + this.xMove.toFixed(5) + 'Y' + this.yMove.toFixed(5) + ' \n');
-		this.driver.gcodeWrite(move);
+	this.xMove = xloc;
+	this.yMove = yloc;
+	this.zMove = zloc;
+    var option = options || {};
+    var speed = option.speed || 200;
+    //log.debug("what is " + this.toString());
+  	move = ('G0 X' + this.xMove.toFixed(5) + 'Y' + this.yMove.toFixed(5) + this.zMove.toFixed(5));
+    if (options !== null) move += 'F' + option.speed.toFixed(3);
+    move += '\n';
+log.debug("liveStart-to: " + move);
+	this.driver.gcodeWrite(move);
 
 //		 this.renewMoves();
 //	}
 };
 
 LiveCodeRuntime.prototype.renewMoves = function() {
+  log.debug("unexpected renewMove in livecode");
 	if(this.keep_moving) {
 		this.keep_moving = false;
 		var segment = this.currentDirection*(this.renewDistance / RENEW_SEGMENTS);
@@ -214,7 +219,6 @@ LiveCodeRuntime.prototype.renewMoves = function() {
 //			move += ('G1 ' + this.currentAxis + segment.toFixed(5) + '\n');
 //		}
 	move += ('G0 X' + this.xMove.toFixed(5) + 'Y' + this.yMove.toFixed(5) + ' \n');
-
 		this.driver.gcodeWrite(move);
 //		setTimeout(this.renewMoves.bind(this), T_RENEW)		
 	} else {
@@ -225,6 +229,7 @@ LiveCodeRuntime.prototype.renewMoves = function() {
 };
 
 LiveCodeRuntime.prototype.stopMotion = function() {
+  log.debug("unexpected stopMotion in livecode");
 	if(this._limit()) { return; }
 	this.keep_moving = false;
 	this.moving = false;
@@ -232,6 +237,7 @@ LiveCodeRuntime.prototype.stopMotion = function() {
 };
 
 LiveCodeRuntime.prototype.fixedMove = function(axis, speed, distance) {
+  log.debug("unexpected fixedMove in livecode");
 	if(this.moving) {
 		log.warn("fixedMove: Already moving");
 	} else {
