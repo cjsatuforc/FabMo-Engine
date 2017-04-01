@@ -666,7 +666,7 @@ FabMoDashboard.prototype.manualMoveFixed = function(axis, speed, distance, callb
  * @param {Number} axis One of `x`,`y`,`z`,`a`,`b`,`c`
  * @param {Number} speed Speed in current tool units.  Negative to move in the negative direction.
  */
-//TH fix? FabMoDashboard.prototype.manualStart = function(axis, speed) {
+//TH fixed, right? FabMoDashboard.prototype.manualStart = function(axis, speed) {
 FabMoDashboard.prototype.manualStart = function(axis, speed, callback) {
 	this._call("manualStart",{"axis":axis, "speed":speed}, callback);
 }
@@ -691,7 +691,7 @@ FabMoDashboard.prototype.manualStop = function(callback) {
 }
 
 
-//TH WORKING ON live move version using manual move as template
+//TH WORKING ON live move version using manual move as template; **currently ONLY using "livecodeStart"
 FabMoDashboard.prototype.livecodeMoveFixed = function(axis, speed, distance, callback) {
 	this._call("livecodeMoveFixed",{"axis":axis, "speed": speed, "dist":distance}, callback);
 	console.log("livestart " + axis + ", @ " + speed + ", dist> " + distance);
@@ -700,9 +700,9 @@ FabMoDashboard.prototype.livecodeMoveFixed = function(axis, speed, distance, cal
 // FabMoDashboard.prototype.livecodeStart = function(axis, speed, callback) {
 // 	this._call("livecodeStart",{"axis":axis, "speed":speed}, callback);
 // }
-FabMoDashboard.prototype.livecodeStart = function(xloc, yloc, callback) {
-	this._call("livecodeStart",{"xloc":xloc, "yloc":yloc}, callback);
-	console.log("livestart " + xloc + ", " + yloc);
+FabMoDashboard.prototype.livecodeStart = function(xloc, yloc, zloc, speed, callback) {
+	this._call("livecodeStart",{"xloc":xloc, "yloc":yloc, "zloc":zloc, "speed":speed}, callback);
+	console.log("livestart " + xloc + ", " + yloc + ", " + zloc + ", " + speed);
 }
 
 FabMoDashboard.prototype.livecodeHeartbeat = function(callback) {

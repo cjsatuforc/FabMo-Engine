@@ -141,7 +141,7 @@ log.debug("Recieved livecode command: " + JSON.stringify(code));
 	switch(code.cmd) {
 		case 'start':
 //			this.startMotion(code.axis, code.speed);
-			this.startMotion(code.xloc, code.yloc, code.yloc, code.options);
+			this.startMotion(code.xloc, code.yloc, code.yloc, code.speed);
 			break;
 
 		case 'stop':
@@ -170,7 +170,7 @@ LiveCodeRuntime.prototype.maintainMotion = function() {
  * If the tool is already moving, the flag is set to maintain that motion
  */
 //LiveCodeRuntime.prototype.startMotion = function(axis, speed) {
-LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, options) {
+LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
 //var speed = 200;
 //var axis = "x";	
 //	var dir = speed < 0 ? -1.0 : 1.0;
@@ -195,11 +195,10 @@ LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, options) {
 	this.xMove = xloc;
 	this.yMove = yloc;
 	this.zMove = zloc;
-    var option = options || {};
-    var speed = option.speed || 200;
+    this.speed = speed || {};
     //log.debug("what is " + this.toString());
   	move = ('G0 X' + this.xMove.toFixed(5) + 'Y' + this.yMove.toFixed(5) + this.zMove.toFixed(5));
-    if (options !== null) move += 'F' + option.speed.toFixed(3);
+    if (this.speed !== null) move += 'F' + this.speed.toFixed(3);
     move += '\n';
 log.debug("liveStart-to: " + move);
 	this.driver.gcodeWrite(move);
