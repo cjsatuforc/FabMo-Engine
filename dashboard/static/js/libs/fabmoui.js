@@ -347,7 +347,7 @@ FabMoUI.prototype.updateStatusContent = function(status){
 		if(that.file_control)
 		{
 			$(that.pause_button_selector).hide();
-			$(that.resume_button_selector).show()
+			$(that.resume_button_selector).show();
 			$(that.stop_button_selector).hide();
 		}
 	}

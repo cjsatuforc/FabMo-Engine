@@ -436,7 +436,7 @@ define(function(require) {
 
     this._registerHandler('livecodeStart', function(data, callback) {
 //      this.engine.livecodeStart(data.axis, data.speed, function(err, result) {
-      this.engine.livecodeStart(data.xloc, data.yloc, function(err, result) {
+      this.engine.livecodeStart(data.xloc, data.yloc, data.zloc, data.speed, function(err, result) {
         if (err) {
 log.debug("_regHandler in dash ERR: " + JSON.stringify(data));
           callback(err);

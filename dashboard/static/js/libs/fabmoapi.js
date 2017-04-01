@@ -397,8 +397,8 @@ FabMoAPI.prototype.manualMoveFixed = function(axis, speed, distance) {
 //TH for livecode from manual template; ...updated with "callback" fix to match fabmo.js
 //FabMoAPI.prototype.livecodeStart = function(axis, speed, callback) {
 //	this.executeRuntimeCode('livecode', {'cmd': 'start', 'axis' : axis, 'speed' : speed}, callback);
-FabMoAPI.prototype.livecodeStart = function(xloc, yloc, callback) {
-	this.executeRuntimeCode('livecode', {'cmd': 'start', 'xloc' : xloc, 'yloc' : yloc}, callback);
+FabMoAPI.prototype.livecodeStart = function(xloc, yloc, zloc, speed, callback) {
+	this.executeRuntimeCode('livecode', {'cmd': 'start', 'xloc': xloc, 'yloc': yloc, 'zloc': zloc, 'speed': speed}, callback);
 }
 
 FabMoAPI.prototype.livecodeHeartbeat = function(callback) {
