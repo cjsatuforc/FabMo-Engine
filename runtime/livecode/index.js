@@ -141,7 +141,7 @@ log.debug("Recieved livecode command: " + JSON.stringify(code));
 	switch(code.cmd) {
 		case 'start':
 //			this.startMotion(code.axis, code.speed);
-			this.startMotion(code.xloc, code.yloc, code.yloc, code.speed);
+			this.startMotion(code.xloc, code.yloc, code.zloc, code.speed);
 			break;
 
 		case 'stop':
@@ -198,10 +198,11 @@ LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
 	this.zMove = zloc;
     this.speed = speed || {};
     move = "";
+log.debug("liveStart-prep: " + this.yMove + "," + this.zMove + "," + this.speed + ",S:" + speed);
     if (this.xMove !== undefined) move += ('G0 X' + this.xMove.toFixed(5));
     if (this.yMove !== undefined) move += ('G0 Y' + this.yMove.toFixed(5));
-    if (this.zMove !== undefined) move += ('G0 Z' + this.zMove.toFixed(5));
-    if (this.speed !== undefined) move += 'F' + this.speed.toFixed(3);
+//    if (this.zMove !== undefined) move += ('G0 Z' + this.zMove.toFixed(5));
+//    if (this.speed !== undefined) move += 'F' + this.speed.toFixed(3);
     move += '\n';
 log.debug("liveStart-to: " + move);
 	this.driver.gcodeWrite(move);
