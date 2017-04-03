@@ -206,7 +206,6 @@ log.debug("liveStart-prep: " + this.yMove + "," + this.zMove + "," + this.speed)
     move += '\n';
 log.debug("liveStart-to: " + move);
 	this.driver.gcodeWrite(move);
-
 //		 this.renewMoves();
 //	}
 };
