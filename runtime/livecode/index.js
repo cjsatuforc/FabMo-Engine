@@ -1,46 +1,35 @@
 var log = require('../../log').logger('livecode');
-var config = require('../../config');
-var stream = require('stream');
 
-//var T_RENEW = 250; //current Master
+//var T_RENEW = 500;
 var T_RENEW = 5000;
-var SAFETY_FACTOR = 2;       //#NEW  prev 1.25
-var RENEW_SEGMENTS = 3;      //#NEW prev 3
+var SAFETY_FACTOR = 1.25;
+var RENEW_SEGMENTS = 15;
 
 function LiveCodeRuntime() {
 	this.machine = null;
-	this.driver = null;	
-	this.fixedQueue = [];    //#NEW
+	this.driver = null;
 }
 
 LiveCodeRuntime.prototype.toString = function() {
 	return "[LiveCodeRuntime]";
 };
 
-//Check if auth is neeeded to execute code   //#NEW
-ManualRuntime.prototype.needsAuth = function(s) {
-	//all manual needs auth (check) so just return true
-	return true;
-}
-
 LiveCodeRuntime.prototype.connect = function(machine) {
 	this.machine = machine;
 	this.driver = machine.driver;
 	this.ok_to_disconnect = true;
 	this.machine.setState(this, "livecode");
-	this.moving = false;       //??new comments
-	this.keep_moving = false;  //??new comments
-	this.current_axis = null;  // current trajectory
+	this.moving = false;
+	this.keep_moving = false;
+	this.current_axis = null;
 	this.current_speed = null;
+	this.status_handler =  this._onG2Status.bind(this);
 	this.completeCallback = null;
-	this.status_handler = this._onG2Status.bind(this);
 	this.driver.on('status',this.status_handler);
 };
 
 LiveCodeRuntime.prototype.disconnect = function() {
-	if(this.ok_to_disconnect && !this.stream) {  //*NEW
-		log.info("DISCONNECTING MANUAL RUNTIME");
-//	if(this.ok_to_disconnect) {
+	if(this.ok_to_disconnect) {
 		this.driver.removeListener('status', this.status_handler);
 		this._changeState("idle");	
 	} else {
@@ -49,7 +38,6 @@ LiveCodeRuntime.prototype.disconnect = function() {
 };
 
 LiveCodeRuntime.prototype._changeState = function(newstate, message) {
-	log.debug("Changing to " + newstate)
 	if(newstate === "idle") {
 		this.ok_to_disconnect = true;
 		var callback = this.completeCallback || function() {};
@@ -90,51 +78,50 @@ LiveCodeRuntime.prototype._onG2Status = function(status) {
 		if(key in status) {
 			this.machine.status[key] = status[key];
 		}
-// *NEW this chunk removed in latest update master
-// 	}
+	}
 
-// 	switch(this.machine.status.state) {
-// 		case "not_ready":
-// 			// This shouldn't happen.
-// 			log.error("WAT.");
-// 			break;
+	switch(this.machine.status.state) {
+		case "not_ready":
+			// This shouldn't happen.
+			log.error("WAT.");
+			break;
 
-// 		//TH
-// 		case "livecode":
-// 			if(status.stat === this.driver.STAT_HOLDING && status.stat === 0) {
-// 				this._changeState("paused");
-// 				break;
-// 			}
+		//TH
+		case "livecode":
+			if(status.stat === this.driver.STAT_HOLDING && status.stat === 0) {
+				this._changeState("paused");
+				break;
+			}
 
-// 			if((status.stat === this.driver.STAT_STOP || status.stat === this.driver.STAT_END) && status.hold === 0) {
-// 				this._changeState("idle");
-// 				break;
-// 			}
-// 			break;
+			if((status.stat === this.driver.STAT_STOP || status.stat === this.driver.STAT_END) && status.hold === 0) {
+				this._changeState("idle");
+				break;
+			}
+			break;
 
-// 		case "paused":
-// 			if((status.stat === this.driver.STAT_STOP || status.stat === this.driver.STAT_END) && status.hold === 0) {
-// 				this._changeState("idle");
-// 				break;
-// 			}
-// 			break;
+		case "paused":
+			if((status.stat === this.driver.STAT_STOP || status.stat === this.driver.STAT_END) && status.hold === 0) {
+				this._changeState("idle");
+				break;
+			}
+			break;
 
-// 		case "idle":
-// 			if(status.stat === this.driver.STAT_RUNNING) {
-// //TH				this._changeState("manual");
-// 				this._changeState("livecode");
-// 				break;
-// 			}
-// 			break;
+		case "idle":
+			if(status.stat === this.driver.STAT_RUNNING) {
+//TH				this._changeState("manual");
+				this._changeState("livecode");
+				break;
+			}
+			break;
 
-// 		case "stopped":
-// 			switch(status.stat) {
-// 				case this.driver.STAT_STOP:			
-// 				case this.driver.STAT_END:
-// 					this._changeState("idle");
-// 					break;
-// 			}
-// 			break;
+		case "stopped":
+			switch(status.stat) {
+				case this.driver.STAT_STOP:			
+				case this.driver.STAT_END:
+					this._changeState("idle");
+					break;
+			}
+			break;
 
 	}
 	this.machine.emit('status',this.machine.status);
@@ -175,7 +162,6 @@ log.debug("Recieved livecode command: " + JSON.stringify(code));
 };
 
 LiveCodeRuntime.prototype.maintainMotion = function() {
-	//*NEW there is an if this.moving in new version, not changed here
 	this.keep_moving = true;
 };
 
@@ -183,8 +169,6 @@ LiveCodeRuntime.prototype.maintainMotion = function() {
  * Called to set the tool into motion.
  * If the tool is already moving, the flag is set to maintain that motion
  */
-
-//**NEW this section remains totally different ... don't know if manual streamable yet
 //LiveCodeRuntime.prototype.startMotion = function(axis, speed) {
 LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
 //var speed = 200;
@@ -250,37 +234,25 @@ LiveCodeRuntime.prototype.stopMotion = function() {
   log.debug("unexpected stopMotion in livecode");
 	if(this._limit()) { return; }
 	this.keep_moving = false;
-//*NEW changed ... in case potentially useful
-    this.quit();
-//	this.moving = false;
-//	this.driver.quit();
+	this.moving = false;
+	this.driver.quit();
 };
 
-//*NEW ... not using so fully copied
 LiveCodeRuntime.prototype.fixedMove = function(axis, speed, distance) {
   log.debug("unexpected fixedMove in livecode");
 	if(this.moving) {
-		this.fixedQueue.push({axis: axis, speed: speed, distance: distance});
-		log.warn("fixedMove(): Not moving, due to already moving IN livecode.");
+		log.warn("fixedMove: Already moving");
 	} else {
-		this.moving = true;
-		var axis = axis.toUpperCase();
+		axis = axis.toUpperCase();
 		if('XYZABCUVW'.indexOf(axis) >= 0) {
-			var moves = ['G91'];
+			var move;
 			if(speed) {
-				moves.push('G1 ' + axis + distance.toFixed(5) + ' F' + speed.toFixed(3))
+				move = 'G91\nG1 ' + axis + distance.toFixed(5) + ' F' + speed.toFixed(3) + '\n';
 			} else {
-				moves.push('G0 ' + axis + distance.toFixed(5) + ' F' + speed.toFixed(3))
+				move = 'G91\nG0 ' + axis + distance.toFixed(5) + '\n';				
 			}
-			this.driver.runList(moves).then(function(stat) {
-				log.debug("Done moving.")
-				this.moving = false;
-				if(this.fixedQueue.length > 0) {
-					var move = this.fixedQueue.shift();
-					//console.log("Dequeueing move: ", move)
-					setImmediate(this.fixedMove.bind(this), move.axis, move.speed, move.distance)
-				}
-			}.bind(this));
+			this.driver.gcodeWrite(move);
+log.debug("livecodeFIXEDMOVE >> " + axis);
 		}
 	}
 };
@@ -290,13 +262,7 @@ LiveCodeRuntime.prototype.pause = function() {
 };
 
 LiveCodeRuntime.prototype.quit = function() {
-	// *NEW updated as follows v     this.driver.quit();
-	if(this.moving) {
-		this.driver.quit();		
-	}
-	if(this.stream) {
-		this.stream.end();
-	}
+	this.driver.quit();
 };
 
 LiveCodeRuntime.prototype.resume = function() {
