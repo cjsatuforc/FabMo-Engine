@@ -486,6 +486,7 @@ Engine.prototype.start = function(callback) {
 
         function(err, results) {
             if(err) {
+                log.stack();
                 log.error(err);
                 typeof callback === 'function' && callback(err);
             } else {

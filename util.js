@@ -7,6 +7,7 @@ var uuid = require('node-uuid');
 var fs = require('fs');
 var escapeRE = require('escape-regexp-component');
 var exec = require('child_process').exec;
+var stream = require('stream');
 
 var mime = require('mime');
 var restify = require('restify');
@@ -440,6 +441,59 @@ var unitType = function(u) {
       break;
   }
 }
+
+
+
+function LineNumberer(options) {
+  // allow use without new
+  if (!(this instanceof LineNumberer)) {
+    return new LineNumberer(options);
+  }
+  this.count = 0;
+  // init Transform
+  stream.Transform.call(this, options);
+}
+util.inherits(LineNumberer, stream.Transform);
+
+
+
+LineNumberer.prototype._transform = function(chunk, enc, next) {
+  var data = chunk.toString();
+  if (this._lastLineData) { data = this._lastLineData + data; }
+
+  var lines = data.split('\n');
+  this._lastLineData = lines.splice(lines.length-1,1)[0];
+  
+  lines.forEach( function(line) {
+    this.count += 1;
+    this.push("N" + this.count + " " + line + '\n');
+  }.bind(this));
+
+  next();
+};
+
+LineNumberer.prototype._flush = function(done) {
+  if (this._lastLineData) { this.push(this._lastLineData); }
+  this._lastLineData = null;
+  done();
+};
+
+var countLineNumbers = function(filename, callback) {
+    var i;
+    var lines = 0;
+    require('fs').createReadStream(filename)
+      .on('data', function(chunk) {
+        for (i=0; i < chunk.length; ++i)
+          if (chunk[i] == 10) lines++;
+      })
+      .on('end', function() {
+        callback(null, lines)
+      });
+}
+
+exports.countLineNumbers = countLineNumbers;
+exports.LineNumberer = LineNumberer;
+
 
 exports.serveStatic = serveStatic;
 exports.Queue = Queue;

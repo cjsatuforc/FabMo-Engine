@@ -456,7 +456,7 @@ module.exports = function(server) {
     server.post('/job/:id', resubmitJob);
     server.get('/job/:id/file', getJobFile);
     server.get('/job/:id/gcode', getJobGCode);
-    server.get('/job/:id/thumbnail', getThumbnailImage);
+    //server.get('/job/:id/thumbnail', getThumbnailImage);
 
     server.get('/jobs/queue', getQueue);
     server.del('/jobs/queue', clearQueue);

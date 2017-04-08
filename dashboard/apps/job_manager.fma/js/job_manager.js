@@ -131,15 +131,15 @@ function makeActions() {
 }
 
 // Returns an img string DOM element for holding the job preview thumbnail.
-function createPreviewThumbnail(job, width, height) {
-  var img = document.createElement("img");
-  img.style.marginRight = "4px";
-  img.width = width;
-  img.height = height;
-  img.alt = "[No possible preview]";
-  img.src = "/job/" + job._id + "/thumbnail";
-  return img.outerHTML;
-}
+// function createPreviewThumbnail(job, width, height) {
+//   var img = document.createElement("img");
+//   img.style.marginRight = "4px";
+//   img.width = width;
+//   img.height = height;
+//   img.alt = "[No possible preview]";
+//   img.src = "/job/" + job._id + "/thumbnail";
+//   return img.outerHTML;
+// }
 
 function addQueueEntries(jobs) {
   clearQueue();
@@ -167,7 +167,7 @@ function addQueueEntries(jobs) {
       listItem.setAttribute("data-id", jobs[i]._id);
       table.appendChild(listItem);
       var id = document.getElementById(jobs[i]._id);
-      id.innerHTML = '<div id="menu"></div><div class="job_name">' + jobs[i].name + '</div><div class="description">' + createPreviewThumbnail(jobs[i], 100, 100) + jobs[i].description + '</div>';
+      id.innerHTML = '<div id="menu"></div><div class="job_name">' + jobs[i].name + '</div><div class="description">' + jobs[i].description + '</div>';
       var menu = id.firstChild;
 
       // menu.className += ' actions-control';
@@ -207,7 +207,7 @@ function addQueueEntries(jobs) {
       recentItem.setAttribute("data-id", recent[i]._id);
       recentJobs.appendChild(recentItem);
       var id = document.getElementById(recent[i]._id);
-      id.innerHTML = '<div id="menu"></div><div id="name">' + recent[i].name + '</div><div class="description">' + createPreviewThumbnail(recent[i], 100, 100) + '<br/>' + recent[i].description + '</div>';
+      id.innerHTML = '<div id="menu"></div><div id="name">' + recent[i].name + '</div><div class="description">' +  recent[i].description + '</div>';
       var menu = id.firstChild;
 
       // menu.className += ' actions-control';
@@ -306,7 +306,7 @@ function addHistoryEntries(jobs) {
     var time = row.insertCell(4);
 
     menu.innerHTML = createHistoryMenu(job._id);
-    thumbnail.innerHTML = createPreviewThumbnail(job, 50, 50);
+    // thumbnail.innerHTML = createPreviewThumbnail(job, 50, 50);
     name.innerHTML = '<div class="job-' + job.state + '">' + job.name + '</div>';
     done.innerHTML = moment(job.finished_at).fromNow();
     time.innerHTML = moment.utc(job.finished_at - job.started_at).format('HH:mm:ss');
@@ -1112,6 +1112,15 @@ function runNext() {
  });
 }
 
+function findUpTag(el, id) {
+    while (el.parentNode) {
+        el = el.parentNode;
+        if (el.id === id)
+            return el;
+    }
+    return null;
+}
+
 	$(document).ready(function() {
 	//Foundation Init
   
@@ -1136,52 +1145,7 @@ function runNext() {
 	updateHistory();
 
 	setupDropTarget();
-
-
-	$('#queue_table').on('mousedown', '.job_item:first-child', function(e) {
-		$('#queue_table').on('mousedown', '#actions', function(e){
-			e.stopPropagation();
-		});
-		if ($(window).width() > 750 ){
-			var left = e.pageX - (145/2);
-			var right = $(document).width() - e.pageX - (145/2);
-			$(this).css({
-				"margin-left":left.toString() + "px",
-				"margin-right":right.toString() + "px"
-			});
-
-			$(this).on('mouseup', function(e) {
-				$(this).css({
-					"margin-left":"",
-					"margin-right":""
-				});
-			});
-		}
-	});
-
-	$('#queue_table').on('touchstart', '.job_item:first-child', function(e) {
-		$('#queue_table').on('touchstart', '#actions', function(e){
-			e.stopPropagation();
-		});
-		if ($(window).width() > 750 ){
-			var left = e.originalEvent.touches[0].pageX; - (145/2);
-			var right = e.originalEvent.touches[0].pageX; - (145/2);
-			$(this).css({
-				"margin-left":left.toString() + "px",
-				"margin-right":right.toString() + "px"
-			});
-
-			$(this).on('touchend', function(e) {
-				$(this).css({
-					"margin-left":"",
-					"margin-right":""
-				});
-			});
-		}
-	});
-
-
-runNext();
+  runNext();
 
 	$('#history_page_next').click(function(evt) {
 		evt.preventDefault();
@@ -1251,5 +1215,29 @@ runNext();
 		e.wrap('<form>').closest('form').get(0).reset();
 		e.unwrap();
 	}
+
+
+	$('#queue_table').on('touchstart, mousedown', '.job_item:first-child', function(e) {
+    var el = e.target;
+    var a = findUpTag(el, "actions");   // search <a ...>
+    if (a) {
+      return
+    }
+		if ($(window).width() > 750 ){
+			var left = e.pageX - (145/2);
+			var right = $(document).width() - e.pageX - (145/2);
+			$(this).css({
+				"margin-left":left.toString() + "px",
+				"margin-right":right.toString() + "px"
+			});
+
+			$(this).on('touchend, mouseup', function(e) {
+				$(this).css({
+					"margin-left":"",
+					"margin-right":""
+				});
+			});
+		}
+	});
    
 	});

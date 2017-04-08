@@ -10,6 +10,8 @@ var interp = require('./interpolate');
 var Leveler = require('./commands/leveler').Leveler;
 var u = require('../../util');
 var config = require('../../config');
+var stream = require('stream');
+
 var SYSVAR_RE = /\%\(([0-9]+)\)/i ;
 var USERVAR_RE = /\&([a-zA-Z_]+[A-Za-z0-9_]*)/i ;
 var PERSISTENTVAR_RE = /\$([a-zA-Z_]+[A-Za-z0-9_]*)/i ;
@@ -28,6 +30,7 @@ function SBPRuntime() {
 	events.EventEmitter.call(this);
 	this.connected = false;
 	this.ok_to_disconnect = true;
+	this.stack = [];
 	this.program = [];
 	this.pc = 0;
 	this.start_of_the_chunk = 0;
@@ -37,8 +40,6 @@ function SBPRuntime() {
 	this.file_stack = [];
 	this.current_chunk = [];
 	this.output = [];
-	this.event_handlers = {};
-	this.event_teardown = {};
 	this.running = false;
 	this.quit_pending = false;
 	this.cmd_result = 0;
@@ -134,6 +135,23 @@ SBPRuntime.prototype.disconnect = function() {
 SBPRuntime.prototype.executeCode = function(s, callback) {
 	this.runString(s, callback);
 }
+
+//Check whether the code needs auth
+SBPRuntime.prototype.needsAuth = function(s) {
+	var lines =  s.split('\n');
+	console.log(lines);
+	lines = lines.filter(Boolean);
+	for (var i = 0, x = lines.length; i < x; i++) {
+		if ( lines[i].toUpperCase().charAt( 0 ) !=='Z') {
+			return true;
+		} 
+	};
+	return false;
+}
+
+
+
+
 // Run the provided string in OpenSBP format
 SBPRuntime.prototype.runString = function(s, callback) {
 	try {
@@ -159,7 +177,6 @@ SBPRuntime.prototype.runString = function(s, callback) {
 		log.debug("Labels analyzed...")
 		this._analyzeGOTOs();   // Check all the GOTO/GOSUBs against the label table
 		log.debug("GOTOs analyzed...")
-		this.emit_gcode(config.driver.get('gdi') ? 'G91' : 'G90');
 		log.debug("Rainbows organized...")
 		this._run();
 		log.debug("Returning from run...");
@@ -299,6 +316,7 @@ SBPRuntime.prototype._onG2Status = function(status) {
 			this.machine.status[key] = status[key];
 		}
 	}
+
 	this.machine.emit('status',this.machine.status);
 };
 
@@ -406,7 +424,7 @@ SBPRuntime.prototype._breaksStack = function(cmd) {
 			break;
 
 		case "event":
-			result = true;
+			result = true; // TODO: DEPRECATE
 			break;
 
 		default:
@@ -429,86 +447,127 @@ SBPRuntime.prototype._exprBreaksStack = function(expr) {
 // Start the stored program running
 SBPRuntime.prototype._run = function() {
 	log.info("Starting OpenSBP program")
-	this.started = true;
 	if(this.machine) {
 		this.machine.setState(this, "running");
 	}
-	this._continue();
+	setTimeout(function() {
+
+	// DO IT
+	this.started = true;
+	this.waitingForStackBreak = false;
+	this.gcodesPending = false;
+
+	var that = this;
+	var onStat = function(stat) {
+		switch(stat) {
+			case that.driver.STAT_STOP:
+				that.gcodesPending = false;
+				that._executeNext();
+			break;
+			case that.driver.STAT_HOLDING:
+				that.paused = true;
+				that.machine.setState(that, 'paused');
+			break;
+			case that.driver.STAT_RUNNING:
+				that.machine.setState(that, 'running');
+			break;
+
+		}
+	}
+
+	if(this.file_stack.length) {
+		log.info("Running subprogram")
+		log.debug(this.file_stack)
+		this._executeNext();
+	} else {
+		this.stream = new stream.PassThrough();
+		this.driver.runStream(this.stream)
+			.on('stat', onStat)
+			.then(function() {
+				log.info("openSBP: All done.");
+				this._end();
+			}.bind(this));
+
+		//this.emit_gcode(config.driver.get('gdi') ? 'G91' : 'G90');
+		//this.emit_gcode('M0'); // TEMPORARY FOR STATE SAKE
+
+		this._executeNext();
+	}
+	}.bind(this), 250);
 };
 
+SBPRuntime.prototype.isInSubProgram = function() {
+	return this.file_stack.length > 0;
+}
+
 // Continue running the current program (until the end of the next chunk)
-// _continue() will dispatch the next chunk if appropriate, once the current chunk is finished
-SBPRuntime.prototype._continue = function() {
+// _executeNext() will dispatch the next chunk if appropriate, once the current chunk is finished
+SBPRuntime.prototype._executeNext = function() {
+	log.debug("_executeNext()")
 	this._update();
 
 	// Continue is only for resuming an already running program.  It's not a substitute for _run()
 	if(!this.started) {
-		log.warn('Got a _continue() but not started');
+		log.warn('Got a _executeNext() but not started');
 		return;
 	}
 
-	// Do forever:  Will break out in the event that the program ends
-	while(true) {
-		// If we've run off the end of the program, we're done!
-		if(this.pc >= this.program.length) {
-			log.info("End of program reached. (pc = " + this.pc + ")");
-			// We may yet have g-codes that are pending.  Run those.
-			if(this.current_chunk.length > 0) {
-				log.info("Dispatching final g-codes")
-				return this._dispatch(this._continue.bind(this));
-			} else {
-				log.info("No g-codes remain to dispatch.")
-				return this._end(this.end_message);
-			}
-		}
+	if(this.pending_error) {
+		return this._end(e);
+	}
 
-		if(this.quit_pending) {
-			return this._end();
-		}
+	if(this.pc >= this.program.length) {
+		log.info("End of program reached. (pc = " + this.pc + ")");
+		this.driver.prime();
+		if(this.gcodesPending) { return; }
 
-		// Pull the current line of the program from the list
-		line = this.program[this.pc];
-		if(this._breaksStack(line)) {
-			// If it's a stack breaker go ahead and distpatch the current g-code list to the tool
-			log.debug("Stack break: " + JSON.stringify(line));
-			dispatched = this._dispatch(this._continue.bind(this));
-
-			// If we dispatched anything
-			if(!dispatched) {
-				log.debug('Nothing to execute in the queue: continuing.');
-				if(!this.machine) {
-					log.warn('Attempting to execute a stack-breaking command without G2, which may cause issues.')
-					try {
-						this._execute(line, this._continue.bind(this));
-					} catch(e) {
-						log.error('There was a problem: ' + e);
-						setImmediate(this._continue.bind(this));
-					}
-				} else {
-					try {
-						log.debug("executing + " + JSON.stringify(line))
-						this._execute(line, this._continue.bind(this));
-					} catch(e) {
-						return this._end(e.message);
-					}
-				}
-				break;
-			} else {
-
-				if(this.machine) {
-					log.debug('Dispatched g-codes to tool.')
-					break;
-				} else {
-					setImmediate(this._continue.bind(this));
-				}
-			}
+		if(this.isInSubProgram()) {
+			log.debug("This is a nested end.  Popping the file stack.");
+			this._popFileStack();
+			this.pc += 1;
+			setImmediate(this._executeNext.bind(this));
 			return;
 		} else {
-				log.debug("Non-Stack break: " + JSON.stringify(line));
+			log.debug("This is not a nested end.  No stack.")
+			this.emit_gcode('M30');
+			return;
+		}
+	}
 
+	// Pull the current line of the program from the list
+	var line = this.program[this.pc];
+	var breaksTheStack = this._breaksStack(line);
+
+	if(breaksTheStack) {
+		log.debug("Stack break: " + JSON.stringify(line));
+		this.driver.prime();
+		if(this.driver.status.stat != this.driver.STAT_STOP && this.driver.status.stat != this.driver.STAT_END) {
+			log.debug("Deferring because g2 is still running.");
+			log.debug("Current stat: " + this.driver.status.stat);
+			return; // G2 is running, we'll get called when it's done
+		} else {
+			// G2 is stopped, execute stack breaking command now
 			try {
-				this._execute(line);
+				log.debug("executing: " + JSON.stringify(line))
+				this._execute(line, this._executeNext.bind(this));
+				return;
 			} catch(e) {
+				return this._end(e);
+			}
+		}
+		return;
+	} else {
+		log.debug("Non-Stack break: " + JSON.stringify(line));
+		try {
+			log.debug("executing: " + JSON.stringify(line))
+			this._execute(line);
+			setImmediate(this._executeNext.bind(this));
+		} catch(e) {
+			log.error(e)
+			if(this.driver.status.stat != this.driver.STAT_STOP) {
+				this.pending_error = e;
+				setImmediate(this._executeNext.bind(this));
+			} else {
 				return this._end(e);
 			}
 		}
@@ -517,250 +576,37 @@ SBPRuntime.prototype._continue = function() {
 
 SBPRuntime.prototype._end = function(error) {
 	error = error ? error.message || error : null;
-	if(this.machine) {
-		var end_function_no_nesting = function() {
-			log.debug("Calling the non-nested (toplevel) end");
-			// We are truly done
-			callback = this.end_callback;
-			this.init();
-			if(error) {
-				this.machine.restoreDriverState(function(err, result) {
-					this.machine.setState(this, 'stopped', {'error' : error });
-					this.emit('end', this);
-					if(callback) {
-						callback();
-					}
+	log.debug("Calling the non-nested (toplevel) end");
+	this.init();
+
+	if(error) {
+		this.machine.restoreDriverState(function(err, result) {
+			this.machine.setState(this, 'stopped', {'error' : error });
+			this.emit('end', this);
+			if(this.end_callback) {
+				this.end_callback();
+			}
+		}.bind(this));
+	} else {
+		this.machine.restoreDriverState(function(err, result) {
+			if(this.machine.status.job) {
+				this.machine.status.job.finish(function(err, job) {
+					this.machine.status.job=null;
+					this.machine.setState(this, 'idle');
 				}.bind(this));
 			} else {
-				this.machine.restoreDriverState(function(err, result) {
-					if(this.machine.status.job) {
-						this.machine.status.job.finish(function(err, job) {
-							this.machine.status.job=null;
-							this.machine.setState(this, 'idle');
-						}.bind(this));
-					} else {
-						this.driver.setUnits(config.machine.get('units'), function() {
-							this.machine.setState(this, 'idle');
-						}.bind(this));
-					}
-					this.ok_to_disconnect = true;
-					this.emit('end', this);
-					if(callback) {
-						callback();
-					}
+				this.driver.setUnits(config.machine.get('units'), function() {
+					this.machine.setState(this, 'idle');
 				}.bind(this));
 			}
-		}.bind(this);
-
-		var end_function_nested = function() {
-			log.debug("Calling the nested end.");
-			callback = this.end_callback;
-			if(callback) {
-				callback();
+			this.ok_to_disconnect = true;
+			this.emit('end', this);
+			if(this.end_callback) {
+				this.end_callback();
 			}
-		}.bind(this);
-
-		if((this.file_stack.length > 0) && !this.quit_pending && !error) {
-			log.debug("Doing the nested end.")
-			end_function = end_function_nested;
-		}
-		else {
-			log.debug("Doing the outermost end.")
-			end_function = end_function_no_nesting;
-		}
-
-		switch(this.driver.status.stat) {
-			case this.driver.STAT_END:
-			case this.driver.STAT_STOP:
-				end_function();
-			break;
-
-			default:
-				this.driver.expectStateChange( {
-					'end':end_function,
-					'stop':end_function
-				});
-				if(end_function === end_function_no_nesting) {
-					this.driver.runSegment('M30\n');
-				} else {
-					this.driver.requestStatusReport();
-				}
-			break;
-		}
-
-	} else {
-		var callback = this.end_callback;
-		var gcode = this.output;
-		this.init();
-		this.emit('end', this.output);
-		if(callback) {
-			if(error) {
-				callback(error, null);
-			} else {
-				callback(null, gcode.join('\n'));
-			}
-		}
+		}.bind(this));
 	}
 };
-
-// Pack up the current chunk (if it is nonempty) and send it to G2
-// Returns true if there was data to send to G2, false otherwise.
-SBPRuntime.prototype._dispatch = function(callback) {
-	var runtime = this;
-
-	// If there's g-codes to be dispatched to the tool
-	if(this.current_chunk.length > 0) {
-
-		// And we have are connected to a real tool
-		if(this.machine) {
-			// Dispatch the g-codes and look for the tool to start running them
-			//log.info("dispatching a chunk: " + this.current_chunk);
-
-			var hold_function = function(driver) {
-				log.info("Expected hold and got one.")
-				// On hold, handle event that caused the hold
-				var event_handled = this._processEvents(callback);
-
-				// If no event claims the hold, we actually enter the paused state
-				// (And expect a resume or a stop)
-				if(!event_handled) {
-					this.machine.setState(this, "paused");
-					driver.expectStateChange({
-						"running" : function(driver) {
-								this.machine.setState(this, "running");
-							run_function(driver);
-						}.bind(this),
-						"end" : function(driver) {
-							this._end();
-						}.bind(this),
-						"stop" : function(driver) {
-							callback();
-						},
-						"alarm" : hold_function
-					});
-				}
-			}.bind(this);
-
-			var run_function = function(driver) {
-				log.debug("Expected a running state change and got one.");
-
-				// Once running, anticipate the stop so we can execute the next leg of the file
-				driver.expectStateChange({
-					"stop" : function(driver) {
-						// On stop, keep going
-						callback();
-					},
-					"alarm" : function(driver) {
-						// On alarm terminate the program (for now)
-						if(this._limit()) {return;}
-						this._end();
-					}.bind(this),
-					"end" : function(driver) {
-						// On end terminate the program (for now)
-						this._end();
-					}.bind(this),
-
-					"holding" : hold_function,
-
-					"running" : null,
-					null : function(driver) {
-						// TODO: This is probably a failure
-						log.warn("Expected a stop or hold (from the run state) but didn't get one.");
-					}
-				});
-			}.bind(this);
-
-			var stopped_function = function(driver) {
-
-				this.driver.expectStateChange({
-					"running" : run_function,
-					"stop" : function(driver) { callback(); },
-					"end" : function(driver) { callback(); },
-					"holding" : hold_function,
-					null : function(t) {
-						log.warn("Expected a start but didn't get one. (" + t + ")");
-					},
-					"timeout" : function(driver) {
-						log.warn("State change timeout??")
-						this._continue();
-					}.bind(this)
-				});
-
-			}.bind(this);
-
-			stopped_function(this.driver);
-			var segment = this.current_chunk.join('\n') + '\n';
-			this.driver.runSegment(segment);
-			this.current_chunk = [];
-			return true;
-		} else { // Not connected to a real tool
-			Array.prototype.push.apply(this.output, this.current_chunk);
-			this.current_chunk = []
-			setImmediate(callback)
-			return true;
-		}
-	} else {
-		log.debug("Empty dispatch")
-		return false;
-	}
-};
-
-SBPRuntime.prototype._teardownEvents = function(callback) {
-	log.debug("Leftover Events:");
-	log.debug(this.event_teardown);
-}
-
-// To be called when a hold is encountered spontaneously (to handle ON INPUT events)
-SBPRuntime.prototype._processEvents = function(callback) {
-
-	var event_handled = false;
-	// Iterate over all inputs for which handlers are registered
-	for(var sw in this.event_handlers) {
-		var input_name = 'in' + sw
-		var input_state = this.driver.status[input_name]
-		log.debug("Checking event handlers for " + input_name)
-		// Iterate over all the states of this input for which handlers are registered
-		for(var state in this.event_handlers[sw]) {
-			log.debug("Checking state " + state + " against " + input_state)
-			if(input_state === 1) {
-
-				event_handled = true;
-
-				// Save the current PC, which is encoded as the current G-Code line as reported by G2
-				this.pc = parseInt(this.driver.status.line)
-
-				// Extract the command that is to be executed as a result of the event
-				var cmd = this.event_handlers[sw][state]
-				var teardown = this.event_teardown[sw] || {}
-				if(cmd) {
-					this.driver.queueFlush(function(err) {
-						log.debug("Tearing down the input configuration that caused the event.")
-						this.driver.setMany(teardown, function(err, result) {
-
-							if(this._breaksStack(cmd)) {
-								this._execute(cmd, function() {
-									callback();
-								}.bind(this));
-							} else {
-								this._execute(cmd);
-								callback();
-							}
-						}.bind(this));
-					}.bind(this));
-				} else {
-					log.error("Handler registered, but with no command??  (Bad Error)");
-					callback();
-				}
-			} else {
-
-			}
-		}
-	}
-	if(event_handled) {
-		delete this.event_handlers[sw];
-	}
-		return event_handled;
-	}
 
 SBPRuntime.prototype._executeCommand = function(command, callback) {
 	if((command.cmd in this) && (typeof this[command.cmd] == 'function')) {
@@ -790,7 +636,6 @@ SBPRuntime.prototype._executeCommand = function(command, callback) {
 			} catch(e) {
 				log.error("Error in a non-stack-breaking command");
 				log.error(e);
-				//this._end(e);
 				throw e;
 			}
 			this.pc +=1;
@@ -804,21 +649,14 @@ SBPRuntime.prototype._executeCommand = function(command, callback) {
 	}
 };
 
-SBPRuntime.prototype.runCustomCut = function(number, callback) {
-	if(!this.machine) {
-		return callback();
-	}
+SBPRuntime.prototype.runCustomCut = function(number) {
 	var macro = macros.get(number);
 	if(macro) {
 		log.debug("Running macro: " + JSON.stringify(macro))
 		this._pushFileStack();
-		this.runFile(macro.filename, function() {
-			this._popFileStack();
-			callback();
-		}.bind(this));
+		this.runFile(macro.filename);
 	} else {
-		this._end("Can't run custom cut (macro) C" + number + ": Macro not found.");
-		callback();
+		throw new Error("Can't run custom cut (macro) C" + number + ": Macro not found.")
 	}
 	return true;
 }
@@ -835,21 +673,18 @@ SBPRuntime.prototype._execute = function(command, callback) {
 		return;
 	}
 
-	// log.debug("Executing: " + JSON.stringify(command));
 	// All correctly parsed commands have a type
 	switch(command.type) {
 
-		// A ShopBot Comand (M2, ZZ, C3, etc...)
+		// A ShopBot Comand (M2, ZZ, etc...)
 		case "cmd":
 			return this._executeCommand(command, callback);
 			break;
 
 		// A C# command (custom cut)
 		case "custom":
-			return this.runCustomCut(command.index, function() {
-				this.pc += 1;
-				callback();
-			}.bind(this));
+			this.runCustomCut(command.index);
+			return true;
 			break;
 
 		case "return":
@@ -959,7 +794,7 @@ SBPRuntime.prototype._execute = function(command, callback) {
 					}
 				}
 				this.paused = true;
-				this.continue_callback = this._continue.bind(this);
+				this.continue_callback = this._executeNext.bind(this);
 				this.machine.setState(this, 'paused', {'message' : message || "Paused." });
 				return true;
 			}
@@ -967,7 +802,9 @@ SBPRuntime.prototype._execute = function(command, callback) {
 
 		case "event":
 			this.pc += 1;
-			this._setupEvent(command, callback);
+			//this._setupEvent(command, callback);
+			log.warn("Event handling (ON INPUTs) are disabled.")
+			setImmediate(callback);
 			return true;
 			break;
 
@@ -1015,35 +852,6 @@ SBPRuntime.prototype._assign = function(identifier, value, callback) {
 
 	throw new Error("Cannot assign to " + identifier);
 
-}
-
-SBPRuntime.prototype._setupEvent = function(command, callback) {
-	var sw = command.sw;
-	var mo = 'di'+ sw + 'mo';
-	var ac = 'di' + sw + 'ac';
-	var fn = 'di' + sw + 'fn';
-	args = [mo,ac,fn]
-	this.driver.get(args, function(err, vals) {
-		var setup = {}
-		var teardown = {}
-		teardown[mo] = vals[0];
-		teardown[ac] = vals[1];
-		teardown[fn] = vals[2];
-		setup[mo] = command.state ? vals[0] : (vals[0] ? 0 : 1);
-		setup[ac] = 2
-		setup[fn] =  0
-		this.driver.setMany(setup, function(err, data) {
-			if(command.sw in this.event_handlers) {
-				this.event_handlers[command.sw][command.state] = command.stmt;
-			} else {
-				handler = {}
-				handler[1] = command.stmt
-				this.event_handlers[command.sw] = handler;
-				this.event_teardown[command.sw] = teardown;
-			}
-			callback();
-		}.bind(this));
-	}.bind(this));
 }
 
 SBPRuntime.prototype._eval_value = function(expr) {
@@ -1123,12 +931,12 @@ SBPRuntime.prototype.init = function() {
 	this.sysvar_evaluated = false;
 	this.end_callback = null;
 	this.output = [];				// Used in simulation mode only
-	this.event_handlers = {};		// For ON INPUT etc..
 	this.end_callback = null;
 	this.quit_pending = false;
 	this.end_message = null;
 	this.paused = false;
 	this.units = config.machine.get('units');
+	this.pending_error = null;
 
 	if(this.transforms != null && this.transforms.level.apply === true) {
 		leveler = new Leveler(this.transforms.level.ptDataFile);
@@ -1161,7 +969,7 @@ SBPRuntime.prototype._setUnits = function(units) {
 	this.maxjerk_b = convert(this.jogspeed_b);
 	this.maxjerk_c = convert(this.jogspeed_c);
 	this.cmd_posx = convert(this.cmd_posx);
-	this.cmd_posy = convert(this.cmd_posy); 
+	this.cmd_posy = convert(this.cmd_posy);
 	this.cmd_posz = convert(this.cmd_posz);
 	this.units = units
 }
@@ -1421,19 +1229,21 @@ SBPRuntime.prototype.emit_gcode = function(s) {
 	} else {
 		var n = this.pc;
 	}
-	this.current_chunk.push('N' + n + ' ' + s);
+	//this.current_chunk.push('N' + n + ' ' + s);
+	this.gcodesPending = true;
+	this.stream.write('N' + n + ' ' + s + '\n');
 };
 
 SBPRuntime.prototype.emit_move = function(code, pt) {
 	var gcode = code;
 	var i;
-    log.debug("Emit_move: " + code + " " + JSON.stringify(pt));
+  log.debug("Emit_move: " + code + " " + JSON.stringify(pt));
 
 	['X','Y','Z','A','B','C','I','J','K','F'].forEach(function(key){
 		var c = pt[key];
 		if(c !== undefined) {
-			
-			if(isNaN(c)) { 
+
+			if(isNaN(c)) {
 				var err = new Error("Invalid " + key + " argument: " + c );
 				log.error(err);
 				throw err;
@@ -1478,16 +1288,18 @@ SBPRuntime.prototype.emit_move = function(code, pt) {
 		['X','Y','Z','A','B','C','I','J','K','F'].forEach(function(key){
 			var v = Pt[key];
 			if(v !== undefined) {
-				if(isNaN(v)) { 
+				if(isNaN(v)) {
 					var err = new Error("Invalid " + key + " argument: " + v);
 					log.error(err);
-					throw(err); 
+					throw(err);
 				}
 				gcode += (key + v.toFixed(5));
 			}
 		}.bind(this));
         log.debug("emit_move: N" + n + JSON.stringify(gcode));
-        this.current_chunk.push('N' + n + ' ' + gcode);
+        //this.current_chunk.push('N' + n + ' ' + gcode);
+				this.stream.write('N' + n + ' ' + gcode + '\n');
+
 	}.bind(this);
 
 	if(this.transforms.level.apply === true) {
@@ -1548,7 +1360,7 @@ SBPRuntime.prototype.transformation = function(TranPt){
             TranPt = tform.rotate(TranPt,angle,PtRotX,PtRotY,this.cmd_StartX,this.cmd_StartY);
         }
 	}
-	////No angle being passed to shear functions so they return null 
+	////No angle being passed to shear functions so they return null
 	if (this.transforms.shearx.apply != false){
 		log.debug("ShearX: " + JSON.stringify(this.transforms.shearx));
 		TranPt = tform.shearX(TranPt);
@@ -1583,7 +1395,8 @@ SBPRuntime.prototype.pause = function() {
 }
 
 SBPRuntime.prototype.quit = function() {
-	if(this.machine.status.state == 'stopped' || this.paused) {
+	if(this.machine.status.state == 'stopped' || this.machine.status.state == 'paused') {
+		this.machine.driver.quit();
 		if(this.machine.status.job) {
 			this.machine.status.job.fail(function(err, job) {
 				this.machine.status.job=null;
@@ -1598,18 +1411,13 @@ SBPRuntime.prototype.quit = function() {
 		}
 	} else {
 		this.quit_pending = true;
-		this.machine.driver.quit();
+		this.driver.quit();
 	}
 }
 
 SBPRuntime.prototype.resume = function() {
-	if(this.paused) {
-		this.machine.setState(this, 'running');
 		this.paused = false;
-		this.continue_callback();
-	} else {
 		this.driver.resume();
-	}
 }
 
 exports.SBPRuntime = SBPRuntime;

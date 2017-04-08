@@ -65,8 +65,8 @@ FlightRecorder.prototype.getLatest = function() {
 	return this.records[this.records.length-1];
 }
 
-FlightRecorder.prototype.save = function(filename, callback) {
-	var newRecords = []
+FlightRecorder.prototype.getFlightLog = function() {
+var newRecords = []
 	if(this.records.length > 0) {
 		var startTime = this.records[0].time;
 		this.records.forEach(function(record) {
@@ -83,7 +83,12 @@ FlightRecorder.prototype.save = function(filename, callback) {
 		records : newRecords,
 	    info : this.info
     }
-  fs.writeFile(filename, JSON.stringify(flight, null, 2), callback);
+    return flight;
+}
+
+FlightRecorder.prototype.save = function(filename, callback) {
+	
+  fs.writeFile(filename, JSON.stringify(this.getFlightLog(), null, 2), callback);
 }
 
 
@@ -241,7 +246,7 @@ function exitHandler(options, err) {
     }
     var dir = require('./config').getDataDir('log')
     var fn = 'fabmo-' + Date.now() + '-log.txt'
-		var flight_fn = path.join(dir, 'g2-flight-log.json');
+    var flight_fn = path.join(dir, 'g2-flight-log.json');
 
     filename = path.join(dir, fn)
     if(options.savelog) {
@@ -249,21 +254,28 @@ function exitHandler(options, err) {
     	try {
 	    	saveLogBuffer(filename);
 	    	_log.info("Log saved to " + filename);
-				if(flightRecorder) {
-					flightRecorder.save(flight_fn, function(err, data) {
-						rotateLogs(PERSISTENT_LOG_COUNT, function() {
-			    		if(options.exit) {
-			    			process.exit();
-			    		}
-			    	});
-					});
+		if(flightRecorder) {
+			flightRecorder.save(flight_fn, function(err, data) {
+			rotateLogs(PERSISTENT_LOG_COUNT, function() {
+				if(options.exit) {
+					_log.info("Exiting via process.exit()...");
+					process.exit();
 				}
+			});
+			});
+		} else {
+			if(options.exit) {
+				_log.info("Exiting via process.exit()...");
+				process.exit();
+			}
+		}
 	    	return;
     	} catch(e) {
 	    	_log.error("Could not save log to " + filename);
 	    	_log.error(e);
     	}
 	    if (options.exit) {
+		_log.info("Exiting via process.exit()...");
 	    	process.exit();
 	    }
 	}
@@ -286,6 +298,14 @@ var clearLogBuffer = function() {
 
 var saveLogBuffer = function(filename) {
 	fs.writeFileSync(filename, getLogBuffer());
+}
+
+var getFlightLog = function() {
+	if(flightRecorder) {
+		return flightRecorder.getFlightLog();
+	} else {
+		throw new Error("No available flight recording.")
+	}
 }
 
 var rotateLogs = function(count,callback) {
@@ -318,7 +338,7 @@ var rotateLogs = function(count,callback) {
 	}
 }
 
-
+exports.getFlightLog = getFlightLog;
 exports.FlightRecorder = FlightRecorder;
 exports.suppress = suppress;
 exports.logger = logger;

@@ -9,11 +9,14 @@ var openSBP = require('../opensbp.js');
 // Set to Absolute coordinates
 exports.SA = function(args) {
 	this.emit_gcode("G90");
+	this.emit_gcode("M0");
+
 };
 
 //  Set to Relative coordinates
 exports.SR = function(args) {
 	this.emit_gcode("G91");
+	this.emit_gcode("M0");
 };
 
 // Set to MOVE mode
@@ -60,7 +63,7 @@ exports.SO = function(args) {
 	state = parseInt(args[1]);
 	if(outnum >= 1 && outnum <= 12) {
 		if(state == 1 || state == 0) {
-			if(outnum === 1) {
+			if(outnum === -1) {
 				if(state === 1) {
 					this.emit_gcode('M3');
 				} else {
