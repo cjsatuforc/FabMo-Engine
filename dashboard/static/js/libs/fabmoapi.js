@@ -392,6 +392,26 @@ FabMoAPI.prototype.manualStop = function() {
 FabMoAPI.prototype.manualMoveFixed = function(axis, speed, distance) {
 	this.executeRuntimeCode('manual', {'cmd': 'fixed', 'axis' : axis, 'speed' : speed, 'dist' : distance});
 }
+//TH for livecode from manual template; ...updated with "callback" fix to match fabmo.js
+//FabMoAPI.prototype.livecodeStart = function(axis, speed, callback) {
+//	this.executeRuntimeCode('livecode', {'cmd': 'start', 'axis' : axis, 'speed' : speed}, callback);
+FabMoAPI.prototype.livecodeStart = function(xloc, yloc, zloc, speed, callback) {
+	this.executeRuntimeCode('livecode', {'cmd': 'start', 'xloc': xloc, 'yloc': yloc, 'zloc': zloc, 'speed': speed}, callback);
+}
+
+FabMoAPI.prototype.livecodeHeartbeat = function(callback) {
+	this.executeRuntimeCode('livecode', {'cmd': 'maint'}, callback);
+}
+
+FabMoAPI.prototype.livecodeStop = function(callback) {
+	this.executeRuntimeCode('livecode', {'cmd': 'stop'}, callback);
+}
+
+FabMoAPI.prototype.livecodeMoveFixed = function(axis, speed, distance, callback) {
+	this.executeRuntimeCode('livecode', {'cmd': 'fixed', 'axis' : axis, 'speed' : speed, 'dist' : distance}, callback);
+}
+
+
 
 FabMoAPI.prototype.connectToWifi = function(ssid, key, callback) {
 	var data = {'ssid' : ssid, 'key' : key};
