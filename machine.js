@@ -15,6 +15,8 @@ var async = require('async');
 var GCodeRuntime = require('./runtime/gcode').GCodeRuntime;
 var SBPRuntime = require('./runtime/opensbp').SBPRuntime;
 var ManualRuntime = require('./runtime/manual').ManualRuntime;
+//TH
+var LiveCodeRuntime = require('./runtime/livecode').LiveCodeRuntime;
 var PassthroughRuntime = require('./runtime/passthrough').PassthroughRuntime;
 var IdleRuntime = require('./runtime/idle').IdleRuntime;
 
@@ -104,6 +106,8 @@ function Machine(control_path, callback) {
 	    this.gcode_runtime = new GCodeRuntime();
 	    this.sbp_runtime = new SBPRuntime();
 	    this.manual_runtime = new ManualRuntime();
+//TH
+	    this.livecode_runtime = new LiveCodeRuntime();
 	    this.passthrough_runtime = new PassthroughRuntime();
 	    this.idle_runtime = new IdleRuntime();
 
@@ -111,6 +115,8 @@ function Machine(control_path, callback) {
 				this.gcode_runtime,
 				this.sbp_runtime,
 				this.manual_runtime,
+//TH
+				this.livecode_runtime,
 				this.passthrough_runtime,
 				this.idle_runtime
 			]
@@ -518,6 +524,12 @@ Machine.prototype.getRuntime = function(name) {
 		case 'manual':
 			return this.manual_runtime;
 			break;
+//TH
+		case 'livecode':
+log.debug("Assigned livecode runtime in [machine]");
+			return this.livecode_runtime;
+			break;
+
 		default:
 			return null;
 			break;

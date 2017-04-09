@@ -83,6 +83,19 @@ IdleRuntime.prototype._onG2Status = function(status) {
 			}
 			break;
 
+//TH
+		case "livecode":
+			if(status.stat === this.driver.STAT_HOLDING && status.stat === 0) {
+				this._changeState("paused");
+				break;
+			}
+
+			if((status.stat === this.driver.STAT_STOP || status.stat === this.driver.STAT_END) && status.hold === 0) {
+				this._changeState("idle");
+				break;
+			}
+			break;
+
 		case "stopped":
 		case "paused":
 			if((status.stat === this.driver.STAT_STOP || status.stat === this.driver.STAT_END) && status.hold === 0) {

@@ -422,7 +422,52 @@ define(function(require) {
       });
     }.bind(this));
 
-    this._registerHandler('getApps', function(data, callback) {
+    //TH Section for doing live Moves using manual as template ... not consistent with other patterns?
+    this._registerHandler('livecodeNudge', function(data, callback) {
+      this.engine.livecodeNudge(data.dir, data.dist, function(err, result) {
+//      this.engine.livecodeNudge(data.x_dist, data.y_dist, function(err, result) {
+        if (err) {
+          callback(err);
+        } else {
+          callback(null);
+        }
+      });
+    }.bind(this));
+
+    this._registerHandler('livecodeStart', function(data, callback) {
+//      this.engine.livecodeStart(data.axis, data.speed, function(err, result) {
+      this.engine.livecodeStart(data.xloc, data.yloc, data.zloc, data.speed, function(err, result) {
+        if (err) {
+log.debug("_regHandler in dash ERR: " + JSON.stringify(data));
+          callback(err);
+        } else {
+log.debug("_regHandler in dash OK: " + JSON.stringify(data));
+          callback(null);
+        }
+      });
+    }.bind(this));
+
+    this._registerHandler('livecodeHeartbeat', function(data, callback) {
+      this.engine.livecodeHeartbeat(function(err, result) {
+        if (err) {
+          callback(err);
+        } else {
+          callback(null);
+        }
+      });
+    }.bind(this));
+
+    this._registerHandler('livecodeStop', function(data, callback) {
+      this.engine.livecodeStop(function(err, result) {
+        if (err) {
+          callback(err);
+        } else {
+          callback(null);
+        }
+      });
+    }.bind(this));
+
+this._registerHandler('getApps', function(data, callback) {
       this.engine.getApps(function(err, result) {
         if (err) {
           callback(err);

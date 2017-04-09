@@ -20,6 +20,7 @@ var code = function(req, res, next) {
 		{
 			if(req.params.runtime !== undefined) {
 				var rt = req.params.runtime.toLowerCase().trim();
+log.debug("switching in direct - " + rt); //TH
 				switch(rt) {
 					case 'opensbp':
 					case 'sbp':
@@ -30,6 +31,10 @@ var code = function(req, res, next) {
 					case 'nc':
 					case 'gcode':
 						machine.gcode(req.params.cmd);
+						break;
+
+					case 'livecode':   //TH added
+						machine.livecode(req.params.cmd);
 						break;
 
 					default:
