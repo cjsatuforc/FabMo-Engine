@@ -1,35 +1,58 @@
 var log = require('../../log').logger('livecode');
+var config = require('../../config');
+var stream = require('stream');
 
-//var T_RENEW = 500;
-var T_RENEW = 5000;
-var SAFETY_FACTOR = 1.25;
-var RENEW_SEGMENTS = 15;
+// TH my prev values
+// //var T_RENEW = 500;
+// var T_RENEW = 5000;
+// var SAFETY_FACTOR = 1.25;
+// var RENEW_SEGMENTS = 15;
+var T_RENEW = 250;
+var SAFETY_FACTOR = 2;
+var RENEW_SEGMENTS = 3;
 
 function LiveCodeRuntime() {
 	this.machine = null;
 	this.driver = null;
+	this.fixedQueue = [];  //TH new
 }
 
 LiveCodeRuntime.prototype.toString = function() {
 	return "[LiveCodeRuntime]";
 };
 
+//TH new ... maybe should be false to avoid auth
+//Check if auth is neeeded to execute code
+ManualRuntime.prototype.needsAuth = function(s) {
+	//all manual needs auth (check) so just return true
+	return true;
+}
+
 LiveCodeRuntime.prototype.connect = function(machine) {
 	this.machine = machine;
 	this.driver = machine.driver;
 	this.ok_to_disconnect = true;
 	this.machine.setState(this, "livecode");
+
+	//TH new ... section seems insignificantly changed
+	// True while the tool is known to be in motion
 	this.moving = false;
+
+	// True while the user intends (as far as we know) for the tool to continue moving
 	this.keep_moving = false;
+
+	// Current trajectory
 	this.current_axis = null;
 	this.current_speed = null;
-	this.status_handler =  this._onG2Status.bind(this);
 	this.completeCallback = null;
+	this.status_handler = this._onG2Status.bind(this);
 	this.driver.on('status',this.status_handler);
 };
 
 LiveCodeRuntime.prototype.disconnect = function() {
-	if(this.ok_to_disconnect) {
+//TH 	if(this.ok_to_disconnect) {
+	if(this.ok_to_disconnect && !this.stream) {
+		log.info("DISCONNECTING MANUAL RUNTIME")
 		this.driver.removeListener('status', this.status_handler);
 		this._changeState("idle");	
 	} else {
@@ -38,6 +61,7 @@ LiveCodeRuntime.prototype.disconnect = function() {
 };
 
 LiveCodeRuntime.prototype._changeState = function(newstate, message) {
+	log.debug("Changing to livecode - " + newstate)
 	if(newstate === "idle") {
 		this.ok_to_disconnect = true;
 		var callback = this.completeCallback || function() {};
@@ -62,6 +86,7 @@ LiveCodeRuntime.prototype._limit = function() {
 	return false;
 };
 
+
 LiveCodeRuntime.prototype._onG2Status = function(status) {
 	switch(status.stat) {
 		case this.driver.STAT_INTERLOCK:
@@ -79,53 +104,56 @@ LiveCodeRuntime.prototype._onG2Status = function(status) {
 			this.machine.status[key] = status[key];
 		}
 	}
-
-	switch(this.machine.status.state) {
-		case "not_ready":
-			// This shouldn't happen.
-			log.error("WAT.");
-			break;
-
-		//TH
-		case "livecode":
-			if(status.stat === this.driver.STAT_HOLDING && status.stat === 0) {
-				this._changeState("paused");
-				break;
-			}
-
-			if((status.stat === this.driver.STAT_STOP || status.stat === this.driver.STAT_END) && status.hold === 0) {
-				this._changeState("idle");
-				break;
-			}
-			break;
-
-		case "paused":
-			if((status.stat === this.driver.STAT_STOP || status.stat === this.driver.STAT_END) && status.hold === 0) {
-				this._changeState("idle");
-				break;
-			}
-			break;
-
-		case "idle":
-			if(status.stat === this.driver.STAT_RUNNING) {
-//TH				this._changeState("manual");
-				this._changeState("livecode");
-				break;
-			}
-			break;
-
-		case "stopped":
-			switch(status.stat) {
-				case this.driver.STAT_STOP:			
-				case this.driver.STAT_END:
-					this._changeState("idle");
-					break;
-			}
-			break;
-
-	}
+//TH reorganized from here
 	this.machine.emit('status',this.machine.status);
 };
+
+// 	switch(this.machine.status.state) {
+// 		case "not_ready":
+// 			// This shouldn't happen.
+// 			log.error("WAT.");
+// 			break;
+
+// 		//TH
+// 		case "livecode":
+// 			if(status.stat === this.driver.STAT_HOLDING && status.stat === 0) {
+// 				this._changeState("paused");
+// 				break;
+// 			}
+
+// 			if((status.stat === this.driver.STAT_STOP || status.stat === this.driver.STAT_END) && status.hold === 0) {
+// 				this._changeState("idle");
+// 				break;
+// 			}
+// 			break;
+
+// 		case "paused":
+// 			if((status.stat === this.driver.STAT_STOP || status.stat === this.driver.STAT_END) && status.hold === 0) {
+// 				this._changeState("idle");
+// 				break;
+// 			}
+// 			break;
+
+// 		case "idle":
+// 			if(status.stat === this.driver.STAT_RUNNING) {
+// //TH				this._changeState("manual");
+// 				this._changeState("livecode");
+// 				break;
+// 			}
+// 			break;
+
+// 		case "stopped":
+// 			switch(status.stat) {
+// 				case this.driver.STAT_STOP:			
+// 				case this.driver.STAT_END:
+// 					this._changeState("idle");
+// 					break;
+// 			}
+// 			break;
+
+// 	}
+// 	this.machine.emit('status',this.machine.status);
+// };
 
 
 LiveCodeRuntime.prototype.executeCode = function(code, callback) {
@@ -162,7 +190,11 @@ log.debug("Recieved livecode command: " + JSON.stringify(code));
 };
 
 LiveCodeRuntime.prototype.maintainMotion = function() {
-	this.keep_moving = true;
+//TH new	this.keep_moving = true;
+	log.debug("MAINTAIN")
+	if(this.moving) {
+		this.keep_moving = true;		
+	}	
 };
 
 /*
@@ -193,18 +225,45 @@ LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
 //		this.xMove = 100;
 //		this.yMove = 85;
     //log.debug("what is " + this.toString());
+
+//TH latest STREAM version
+			// if(!this.stream) {
+			// 	this.stream = new stream.PassThrough();
+			// 	this._changeState("manual");
+			// 	this.moving = this.keep_moving = true;
+			// 	this.driver.runStream(this.stream).then(function(stat) {
+			// 		//stream.close()
+			// 		log.info("Finished running stream: " + stat);
+			// 		this.moving = false;
+			// 		this.keep_moving = false;
+			// 		this.stream = null;
+			// 		this._changeState("idle");
+			// 		//config.driver.restoreSome(['zl'], function() {
+			// 		//	log.debug("Restored Z lift value.")
+			// 		//});
+			// 	}.bind(this));
+			// } else {
+			// 	throw new Error("Trying to create a new motion stream when one already exists!");
+			// }
+			// this.stream.write('G91 F' + this.currentSpeed.toFixed(3) + '\n');
+			// this.renewMoves();
+
 	this.xMove = xloc;
 	this.yMove = yloc;
 	this.zMove = zloc;
     this.speed = speed;
     move = "";
-//log.debug("liveStart-prep: " + this.yMove + "," + this.zMove + "," + this.speed);
+log.debug("liveStart-prep: " + this.yMove + "," + this.zMove + "," + this.speed);
     if (this.xMove !== undefined) move += ('G0 X' + this.xMove.toFixed(5));
     if (this.yMove !== undefined) move += ('G0 Y' + this.yMove.toFixed(5));
     if (this.zMove !== undefined) move += ('G0 Z' + this.zMove.toFixed(5));
     if (this.speed !== undefined) move += ('F' + this.speed.toFixed(3));
     move += '\n';
 //log.debug("liveStart-to: " + move);
+//TH new try this??
+			// this.stream.write('G91 F' + this.currentSpeed.toFixed(3) + '\n');
+			// this.renewMoves();
+
 	this.driver.gcodeWrite(move);
 //		 this.renewMoves();
 //	}
@@ -212,49 +271,50 @@ LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
 
 LiveCodeRuntime.prototype.renewMoves = function() {
   log.debug("unexpected renewMove in livecode");
-	if(this.keep_moving) {
-		this.keep_moving = false;
-		var segment = this.currentDirection*(this.renewDistance / RENEW_SEGMENTS);
-//		var move = 'G91 F' + this.currentSpeed.toFixed(3) + '\n';
-		var move = 'G90 F' + this.currentSpeed.toFixed(3) + '\n';
-//		for(var i=0; i<RENEW_SEGMENTS; i++) {
-//			move += ('G1 ' + this.currentAxis + segment.toFixed(5) + '\n');
-//		}
-	move += ('G0 X' + this.xMove.toFixed(5) + 'Y' + this.yMove.toFixed(5) + ' \n');
-		this.driver.gcodeWrite(move);
-//		setTimeout(this.renewMoves.bind(this), T_RENEW)		
-	} else {
-		if(this.machine.status.state != "stopped") {
-			this.stopMotion();	
-		}
-	}
+// 	if(this.keep_moving) {
+// 		this.keep_moving = false;
+// 		var segment = this.currentDirection*(this.renewDistance / RENEW_SEGMENTS);
+// //		var move = 'G91 F' + this.currentSpeed.toFixed(3) + '\n';
+// 		var move = 'G90 F' + this.currentSpeed.toFixed(3) + '\n';
+// //		for(var i=0; i<RENEW_SEGMENTS; i++) {
+// //			move += ('G1 ' + this.currentAxis + segment.toFixed(5) + '\n');
+// //		}
+// 	move += ('G0 X' + this.xMove.toFixed(5) + 'Y' + this.yMove.toFixed(5) + ' \n');
+// 		this.driver.gcodeWrite(move);
+// //		setTimeout(this.renewMoves.bind(this), T_RENEW)		
+// 	} else {
+// 		if(this.machine.status.state != "stopped") {
+// 			this.stopMotion();	
+// 		}
+// 	}
 };
 
 LiveCodeRuntime.prototype.stopMotion = function() {
   log.debug("unexpected stopMotion in livecode");
-	if(this._limit()) { return; }
-	this.keep_moving = false;
-	this.moving = false;
-	this.driver.quit();
+	// if(this._limit()) { return; }
+	// this.keep_moving = false;
+	// this.moving = false;
+	// this.driver.quit();
 };
 
 LiveCodeRuntime.prototype.fixedMove = function(axis, speed, distance) {
   log.debug("unexpected fixedMove in livecode");
-	if(this.moving) {
-		log.warn("fixedMove: Already moving");
-	} else {
-		axis = axis.toUpperCase();
-		if('XYZABCUVW'.indexOf(axis) >= 0) {
-			var move;
-			if(speed) {
-				move = 'G91\nG1 ' + axis + distance.toFixed(5) + ' F' + speed.toFixed(3) + '\n';
-			} else {
-				move = 'G91\nG0 ' + axis + distance.toFixed(5) + '\n';				
-			}
-			this.driver.gcodeWrite(move);
-log.debug("livecodeFIXEDMOVE >> " + axis);
-		}
-	}
+//TH now ENTIRELY DIFFERENT
+// 	if(this.moving) {
+// 		log.warn("fixedMove: Already moving");
+// 	} else {
+// 		axis = axis.toUpperCase();
+// 		if('XYZABCUVW'.indexOf(axis) >= 0) {
+// 			var move;
+// 			if(speed) {
+// 				move = 'G91\nG1 ' + axis + distance.toFixed(5) + ' F' + speed.toFixed(3) + '\n';
+// 			} else {
+// 				move = 'G91\nG0 ' + axis + distance.toFixed(5) + '\n';				
+// 			}
+// 			this.driver.gcodeWrite(move);
+// log.debug("livecodeFIXEDMOVE >> " + axis);
+// 		}
+// 	}
 };
 
 LiveCodeRuntime.prototype.pause = function() {
@@ -262,7 +322,13 @@ LiveCodeRuntime.prototype.pause = function() {
 };
 
 LiveCodeRuntime.prototype.quit = function() {
-	this.driver.quit();
+//TH	this.driver.quit();
+	if(this.moving) {
+		this.driver.quit();		
+	}
+	if(this.stream) {
+		this.stream.end();
+	}
 };
 
 LiveCodeRuntime.prototype.resume = function() {
