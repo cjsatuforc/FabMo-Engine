@@ -23,7 +23,7 @@ LiveCodeRuntime.prototype.toString = function() {
 
 //TH new ... maybe should be false to avoid auth
 //Check if auth is neeeded to execute code
-ManualRuntime.prototype.needsAuth = function(s) {
+LiveCodeRuntime.prototype.needsAuth = function(s) {
 	//all manual needs auth (check) so just return true
 	return true;
 }
