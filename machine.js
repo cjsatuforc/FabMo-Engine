@@ -250,7 +250,8 @@ Machine.prototype.arm = function(action, timeout) {
 			}
 			break;
 		default:
-		throw new Error("Cannot arm the machine from the " + this.status.state + " state.");
+		log.debug("At arm Error: " + this.status.state + ", " + action);
+//		throw new Error("Cannot arm the machine from the " + this.status.state + " state.");
 //		break;
 	}
 
@@ -273,6 +274,7 @@ Machine.prototype.arm = function(action, timeout) {
 		log.info("Firing automatically since authorization is disabled.");
 		this.fire(true);
 	} else {
+		log.debug("NOT -- Firing automatically ...");
 		this.setState(this, 'armed');
 		this.emit('status', this.status);
 	}
