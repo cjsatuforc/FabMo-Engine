@@ -227,26 +227,26 @@ LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
     //log.debug("what is " + this.toString());
 
 //TH latest STREAM version
-			// if(!this.stream) {
-			// 	this.stream = new stream.PassThrough();
-			// 	this._changeState("manual");
-			// 	this.moving = this.keep_moving = true;
-			// 	this.driver.runStream(this.stream).then(function(stat) {
-			// 		//stream.close()
-			// 		log.info("Finished running stream: " + stat);
-			// 		this.moving = false;
-			// 		this.keep_moving = false;
-			// 		this.stream = null;
-			// 		this._changeState("idle");
-			// 		//config.driver.restoreSome(['zl'], function() {
-			// 		//	log.debug("Restored Z lift value.")
-			// 		//});
-			// 	}.bind(this));
-			// } else {
-			// 	throw new Error("Trying to create a new motion stream when one already exists!");
-			// }
-			// this.stream.write('G91 F' + this.currentSpeed.toFixed(3) + '\n');
-			// this.renewMoves();
+			if(!this.stream) {
+				this.stream = new stream.PassThrough();
+				this._changeState("manual");
+				this.moving = this.keep_moving = true;
+				this.driver.runStream(this.stream).then(function(stat) {
+					//stream.close()
+					log.info("Finished running stream: " + stat);
+					this.moving = false;
+					this.keep_moving = false;
+					this.stream = null;
+					this._changeState("idle");
+					//config.driver.restoreSome(['zl'], function() {
+					//	log.debug("Restored Z lift value.")
+					//});
+				}.bind(this));
+			} else {
+				throw new Error("Trying to create a new motion stream when one already exists!");
+			}
+//			this.stream.write('G91 F' + this.currentSpeed.toFixed(3) + '\n');
+//			this.renewMoves();
 
 	this.xMove = xloc;
 	this.yMove = yloc;
@@ -264,7 +264,9 @@ log.debug("liveStart-prep: " + this.yMove + "," + this.zMove + "," + this.speed)
 			// this.stream.write('G91 F' + this.currentSpeed.toFixed(3) + '\n');
 			// this.renewMoves();
 
-	this.driver.gcodeWrite(move);
+			this.stream.write(move);
+
+//TH old	this.driver.gcodeWrite(move);
 //		 this.renewMoves();
 //	}
 };
