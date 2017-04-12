@@ -251,7 +251,7 @@ Machine.prototype.arm = function(action, timeout) {
 			break;
 		default:
 		throw new Error("Cannot arm the machine from the " + this.status.state + " state.");
-		break;
+//		break;
 	}
 
 	delete this.status.info
