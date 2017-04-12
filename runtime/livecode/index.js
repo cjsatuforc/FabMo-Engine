@@ -243,7 +243,9 @@ LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
 					//});
 				}.bind(this));
 			} else {
-				throw new Error("Trying to create a new motion stream when one already exists!");
+                // TH testing         
+                log.debug("Trying to create a new motion stream when one already exists!")
+				//throw new Error("Trying to create a new motion stream when one already exists!");
 			}
 //			this.stream.write('G91 F' + this.currentSpeed.toFixed(3) + '\n');
 //			this.renewMoves();
