@@ -38,7 +38,7 @@ function SBPRuntime() {
 	this.label_index = {};
 	this.stack = [];
 	this.file_stack = [];
-	this.current_chunk = [];
+
 	this.output = [];
 	this.running = false;
 	this.quit_pending = false;
@@ -49,7 +49,7 @@ function SBPRuntime() {
 	this.cmd_posa = undefined;
 	this.cmd_posb = undefined;
 	this.cmd_posc = undefined;
-	//this._loadConfig(); // Create the Speed Values
+
 	this.jogspeed_xy = 0;
 	this.jogspeed_z = 0;
 	this.jogspeed_a = 0;
@@ -139,7 +139,6 @@ SBPRuntime.prototype.executeCode = function(s, callback) {
 //Check whether the code needs auth
 SBPRuntime.prototype.needsAuth = function(s) {
 	var lines =  s.split('\n');
-	console.log(lines);
 	lines = lines.filter(Boolean);
 	for (var i = 0, x = lines.length; i < x; i++) {
 		if ( lines[i].toUpperCase().charAt( 0 ) !=='Z') {
@@ -148,9 +147,6 @@ SBPRuntime.prototype.needsAuth = function(s) {
 	};
 	return false;
 }
-
-
-
 
 // Run the provided string in OpenSBP format
 SBPRuntime.prototype.runString = function(s, callback) {
@@ -382,10 +378,6 @@ SBPRuntime.prototype._breaksStack = function(cmd) {
 			var name = cmd.cmd;
 			if((name in this) && (typeof this[name] == 'function')) {
 				f = this[name];
-				//log.warn(name)
-				//log.warn(f)
-				//log.warn(JSON.stringify(this))
-				//log.warn(f.length)
 				if(f && f.length > 1) {
 					return true;
 				}
@@ -465,7 +457,7 @@ SBPRuntime.prototype._run = function() {
 				that._executeNext();
 			break;
 			case that.driver.STAT_HOLDING:
-				that.paused = true;
+				//that.paused = true;
 				that.machine.setState(that, 'paused');
 			break;
 			case that.driver.STAT_RUNNING:
@@ -476,8 +468,7 @@ SBPRuntime.prototype._run = function() {
 	}
 
 	if(this.file_stack.length) {
-		log.info("Running subprogram")
-		log.debug(this.file_stack)
+		log.debug("Running Subprogram")
 		this._executeNext();
 	} else {
 		this.stream = new stream.PassThrough();
@@ -503,7 +494,6 @@ SBPRuntime.prototype.isInSubProgram = function() {
 // Continue running the current program (until the end of the next chunk)
 // _executeNext() will dispatch the next chunk if appropriate, once the current chunk is finished
 SBPRuntime.prototype._executeNext = function() {
-	log.debug("_executeNext()")
 	this._update();
 
 	// Continue is only for resuming an already running program.  It's not a substitute for _run()
@@ -514,6 +504,10 @@ SBPRuntime.prototype._executeNext = function() {
 
 	if(this.pending_error) {
 		return this._end(e);
+	}
+
+	if(this.paused) {
+		return;
 	}
 
 	if(this.pc >= this.program.length) {
@@ -541,9 +535,9 @@ SBPRuntime.prototype._executeNext = function() {
 	if(breaksTheStack) {
 		log.debug("Stack break: " + JSON.stringify(line));
 		this.driver.prime();
-		if(this.driver.status.stat != this.driver.STAT_STOP && this.driver.status.stat != this.driver.STAT_END) {
-			log.debug("Deferring because g2 is still running.");
-			log.debug("Current stat: " + this.driver.status.stat);
+		
+		if(this.gcodesPending) {
+			log.debug("Deferring because g-codes pending.");
 			return; // G2 is running, we'll get called when it's done
 		} else {
 			// G2 is stopped, execute stack breaking command now
@@ -794,7 +788,6 @@ SBPRuntime.prototype._execute = function(command, callback) {
 					}
 				}
 				this.paused = true;
-				this.continue_callback = this._executeNext.bind(this);
 				this.machine.setState(this, 'paused', {'message' : message || "Paused." });
 				return true;
 			}
@@ -944,9 +937,9 @@ SBPRuntime.prototype.init = function() {
 };
 SBPRuntime.prototype.setPreferredUnits = function(units, callback) {
 	log.info("SBP runtime is setting the preferred units to " + units)
-		this._loadConfig();
-		this._setUnits(units);
-		this._saveConfig(callback);
+	this._loadConfig();
+	this._setUnits(units);
+	this._saveConfig(callback);
 }
 
 SBPRuntime.prototype._setUnits = function(units) {
@@ -1204,7 +1197,7 @@ SBPRuntime.prototype._pushFileStack = function() {
 	frame.program = this.program
 	frame.stack = this.stack;
 	//frame.user_vars = this.user_vars
-	frame.current_chunk = this.current_chunk
+	//frame.current_chunk = this.current_chunk
 	frame.end_callback = this.end_callback
 	frame.label_index = this.label_index
 	this.file_stack.push(frame)
@@ -1217,7 +1210,7 @@ SBPRuntime.prototype._popFileStack = function() {
 	this.stack = frame.stack
 	//this.user_vars = frame.user_vars
 	this.label_index = frame.label_index;
-	this.current_chunk = frame.current_chunk
+	//this.current_chunk = frame.current_chunk
 	this.end_callback = frame.end_callback
 }
 
@@ -1230,8 +1223,10 @@ SBPRuntime.prototype.emit_gcode = function(s) {
 		var n = this.pc;
 	}
 	//this.current_chunk.push('N' + n + ' ' + s);
+	var gcode = 'N' + n + ' ' + s + '\n'
+
 	this.gcodesPending = true;
-	this.stream.write('N' + n + ' ' + s + '\n');
+	this.stream.write(gcode);
 };
 
 SBPRuntime.prototype.emit_move = function(code, pt) {
@@ -1297,9 +1292,7 @@ SBPRuntime.prototype.emit_move = function(code, pt) {
 			}
 		}.bind(this));
         log.debug("emit_move: N" + n + JSON.stringify(gcode));
-        //this.current_chunk.push('N' + n + ' ' + gcode);
-				this.stream.write('N' + n + ' ' + gcode + '\n');
-
+		this.emit_gcode(gcode);
 	}.bind(this);
 
 	if(this.transforms.level.apply === true) {
@@ -1416,8 +1409,12 @@ SBPRuntime.prototype.quit = function() {
 }
 
 SBPRuntime.prototype.resume = function() {
-		this.paused = false;
-		this.driver.resume();
+		if(this.paused) {
+			this.paused = false;
+			this._executeNext();
+		} else {
+			this.driver.resume();
+		}
 }
 
 exports.SBPRuntime = SBPRuntime;

@@ -199,27 +199,17 @@ G2.prototype._createCycleContext = function() {
 		// TODO factor this out
 		if(!this.quit_pending) {
 			this.gcode_queue.enqueue('M30');
-			this.sendMore();
 		}
-		//this.gcode_queue.enqueue('M100 ({out4:0})');
+		this.sendMore();
 		log.debug("Stream END event.")
 	}.bind(this));
 	st.on('pipe', function() {
 		log.debug("Stream PIPE event");
 	})
-	var promise = this._createStatePromise([STAT_END]).then(function alldone() {
-		if(this.lines_to_send == 4) {
-			//console.log("Got an end and there's nothing pending.");
-			this.context = null;
-			this._primed = false;
-			//this._write('{out4:0}\n');
-			this.command({'out4':0});
-			return this;
-		} else {
-			console.log("Got an END but there's junk in the trunk.");
-			console.log(this.lines_to_send);
-			return this._createStatePromise([STAT_END]).then(alldone.bind(this))
-		}
+	var promise = this._createStatePromise([STAT_END]).then(function() {
+		this.context = null;
+		this._primed = false;
+		return this;
 	}.bind(this))
 	var ctx  = new CycleContext(this, st, promise);
 	this.context = ctx;
@@ -340,7 +330,6 @@ G2.prototype.onWAT = function(data) {
 // Called for every chunk of data returned from G2
 G2.prototype.onData = function(data) {
 	t = new Date().getTime();
-	//log.debug('<----' + t + '---- ' + data);
 	this.emit('raw_data',data);
 	var s = data.toString('ascii');
 	var len = s.length;
@@ -354,6 +343,7 @@ G2.prototype.onData = function(data) {
 				var obj = JSON.parse(json_string);
 				this.onMessage(obj);
 			}catch(e){
+				throw e
 				this.emit('error', [-1, 'JSON_PARSE_ERROR', "Could not parse response: '" + jsesc(json_string) + "' (" + e.toString() + ")"]);
 			}
 			this._currentData = [];
@@ -505,7 +495,6 @@ G2.prototype.onMessage = function(response) {
 		if(this._ignored_responses > 0) {
 			this._ignored_responses--;
 		} else {
-			console.log("Incrementing lines_to_send: " + 1 + "/" + this.lines_to_send)
 			this.lines_to_send += 1;
 			this.sendMore();
 		}
@@ -550,10 +539,6 @@ G2.prototype.onMessage = function(response) {
 G2.prototype.feedHold = function(callback) {
 	this.pause_flag = true;
 	this.flooded = false;
-	if(this.quit_pending) {
-		log.warn("Not issuing a feedhold becasue quit pending...");
-		return;
-	}
 	typeof callback === 'function' && this.once('state', callback);
 	log.debug("Sending a feedhold");
 	if(this.context) {
@@ -600,50 +585,26 @@ G2.prototype.resume = function() {
 
 
 G2.prototype.quit = function() {
-
-	if(this.status.stat === STAT_END) {
-		return;
-	}
 	
 	if(this.quit_pending) {
 		log.warn("Not quitting because a quit is already pending.");
-		//this.requestStatusReport();
 		return;
 	}
-	//this.quit_pending = true
 	
 	switch(this.status.stat) {
-		/*case STAT_RUNNING:
-		case STAT_PROBE:
-		case STAT_STOP:
-			this._write('!', function() { log.debug('Drained.'); });
-			break;*/
-		case STAT_HOLDING:
-			this.gcode_queue.clear();
+		case STAT_END:
+			return;
+			break;
+
+		default:
 			this.quit_pending = true;
+
 			if(this.stream) {
 				this.stream.end()				
 			}
+			this.gcode_queue.clear();
 			this._write('\x04\n');
 			break;
-		default:
-			this.gcode_queue.clear();
-			this.quit_pending = true;
-			if(this.stream) {
-				this.stream.end()				
-			}
-			this._write('!\n');
-			break;
-		/*
-		default:
-			this.feedHold();
-			if(this.stream) {
-				this.stream.end()				
-			}
-			this.gcode_queue.clear()
-			
-			break;
-			*/
 	}
 }
 
@@ -768,27 +729,18 @@ G2.prototype.set = function(key, value, callback) {
 
 // Send a command to G2 (can be string or JSON)
 G2.prototype.command = function(obj) {
-	log.info("Command: " + JSON.stringify(obj))
 	var cmd;
 	if((typeof obj) == 'string') {
 		cmd = obj.trim();
-		//this._write('{"gc":"'+cmd+'"}\n');
-		//this.command_queue.enqueue(cmd)
 		this.gcode_queue.enqueue(cmd);
-		//this._write(cmd + '\n');
 	} else {
 		cmd = JSON.stringify(obj);
 		cmd = cmd.replace(/(:\s*)(true)(\s*[},])/g, "$1t$3")
 		cmd = cmd.replace(/(:\s*)(false)(\s*[},])/g, "$1f$3")
 		cmd = cmd.replace(/"/g, '');
-
 		this.command_queue.enqueue(cmd);
 	}
-	//if(this.response_count < RESPONSE_LIMIT) {
-		this.sendMore();
-	//} else {
-//		console.warn("Not sending more on command");
-//	}
+	this.sendMore();
 };
 
 // Send a (possibly multi-line) string
@@ -831,6 +783,12 @@ G2.prototype._createStatePromise = function(states) {
 	this.on('stat', onStat);
 	return deferred.promise;
 }
+G2.prototype.waitForState = function(states) {
+	if(!states.length) {
+		states = [states]
+	}
+	return this._createStatePromise(states);
+}
 
 G2.prototype.runStream = function(s) {
 		this._createCycleContext();
@@ -866,8 +824,7 @@ G2.prototype.sendMore = function() {
 		var to_send = count;
 		var codes = this.command_queue.multiDequeue(count)
 		codes.push("");
-		console.log("Decrementing lines_to_send: " + to_send + "/" + this.lines_to_send)
-		this.lines_to_send -= count;
+		this._ignored_responses+=to_send;
 		this._write(codes.join('\n'), function() {});
 	}
 
@@ -879,7 +836,6 @@ G2.prototype.sendMore = function() {
 				var codes = this.gcode_queue.multiDequeue(to_send);
 				codes.push("");
 				if(codes.length > 1) {
-					console.log("Decrementing lines_to_send: " + to_send + "/" + this.lines_to_send)
 					this.lines_to_send -= to_send/*-offset*/;
 					this._write(codes.join('\n'), function() { });					
 				}
