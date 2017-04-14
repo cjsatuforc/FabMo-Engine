@@ -52,7 +52,7 @@ LiveCodeRuntime.prototype.connect = function(machine) {
 LiveCodeRuntime.prototype.disconnect = function() {
 //TH 	if(this.ok_to_disconnect) {
 	if(this.ok_to_disconnect && !this.stream) {
-		log.info("DISCONNECTING MANUAL RUNTIME")
+		log.info("DISCONNECTING LIVECODE RUNTIME")
 		this.driver.removeListener('status', this.status_handler);
 		this._changeState("idle");	
 	} else {
@@ -229,23 +229,19 @@ LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
 //TH latest STREAM version
 			if(!this.stream) {
 				this.stream = new stream.PassThrough();
-				this._changeState("manual");
+				this._changeState("livecode");
 				this.moving = this.keep_moving = true;
 				this.driver.runStream(this.stream).then(function(stat) {
-					//stream.close()
 					log.info("Finished running stream: " + stat);
 					this.moving = false;
 					this.keep_moving = false;
 					this.stream = null;
 					this._changeState("idle");
-					//config.driver.restoreSome(['zl'], function() {
-					//	log.debug("Restored Z lift value.")
-					//});
 				}.bind(this));
 			} else {
                 // TH testing         
-                log.debug("Trying to create a new motion stream when one already exists!")
-				//throw new Error("Trying to create a new motion stream when one already exists!");
+                log.debug("OK? Trying to create a new motion stream when one already exists!")
+		        //throw new Error("Trying to create a new motion stream when one already exists!");
 			}
 //			this.stream.write('G91 F' + this.currentSpeed.toFixed(3) + '\n');
 //			this.renewMoves();

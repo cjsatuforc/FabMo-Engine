@@ -201,7 +201,7 @@ G2.prototype._createCycleContext = function() {
 			this.gcode_queue.enqueue('M30');
 		}
 		this.sendMore();
-		log.debug("Stream END event.")
+		log.debug("Stream END m30 event.");
 	}.bind(this));
 	st.on('pipe', function() {
 		log.debug("Stream PIPE event");
