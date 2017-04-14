@@ -303,7 +303,7 @@ FabMoUI.prototype.updateStatusContent = function(status){
 		}
 	}
 //TH	else if(status.state === 'manual') {
-	else if(status.state === 'manual' || 'livecode') {
+	else if(status.state === 'manual' || status.state ==='livecode') {
 		that.allowKeypad();
 		$(that.status_div_selector).removeClass('fabmo-status-running fabmo-status-paused fabmo-status-error fabmo-status-disconnected fabmo-status-idle fabmo-status-passthrough');
 		$(that.status_div_selector).removeClass('fabmo-status-running');

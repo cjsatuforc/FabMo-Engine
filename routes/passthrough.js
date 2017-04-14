@@ -8,8 +8,9 @@ var nb_clients=0;
 
 connect = function(socket) {
 
-	log.debug("new_client for passthrough");
+//TH	log.debug("new_client for passthrough");
 	nb_clients++;
+	log.debug("new_client requested for passthrough - " + nb_clients);
 	if (nb_clients<=clients_limit){ // avoid too many connection on the g2 passthrough functionnality.
 		machine.enable_passthrough(function(err,err_msg){
 			if(err){socket.emit("err",err_msg);return;}
