@@ -688,6 +688,26 @@ FabMoDashboard.prototype.manualStop = function() {
 	this._call("manualStop",{}, callback);
 }
 
+//TH WORKING ON live move version using manual move as template; **currently ONLY using "livecodeStart"
+FabMoDashboard.prototype.livecodeMoveFixed = function(axis, speed, distance, callback) {
+	this._call("livecodeMoveFixed",{"axis":axis, "speed": speed, "dist":distance}, callback);
+	console.log("livestart " + axis + ", @ " + speed + ", dist> " + distance);
+}
+
+// FabMoDashboard.prototype.livecodeStart = function(axis, speed, callback) {
+// 	this._call("livecodeStart",{"axis":axis, "speed":speed}, callback);
+// }
+FabMoDashboard.prototype.livecodeStart = function(xloc, yloc, zloc, speed, callback) {
+	this._call("livecodeStart",{"xloc":xloc, "yloc":yloc, "zloc":zloc, "speed":speed}, callback);
+	console.log("livestart " + xloc + ", " + yloc + ", " + zloc + ", " + speed);
+}
+FabMoDashboard.prototype.livecodeHeartbeat = function() {
+	this._call("livecodeHeartbeat",{}, callback);
+}
+FabMoDashboard.prototype.livecodeStop = function() {
+	this._call("livecodeStop",{}, callback);
+}
+
 /**
  * Get the list of all the installed apps.
  * @method getApps
@@ -761,7 +781,10 @@ FabMoDashboard.prototype.deleteApp = function(id, callback) {
 FabMoDashboard.prototype.runGCode = function(text, callback) {
 	this._call("runGCode", text, callback);
 }
-
+//TH ... needed???
+FabMoDashboard.prototype.runLiveCode = function(text, callback) {
+	this._call("runLiveCode", text, callback);
+}
 FabMoDashboard.prototype.runSBP = function(text, callback) {
 	this._call("runSBP", text, callback);
 }
