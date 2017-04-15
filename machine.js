@@ -664,7 +664,7 @@ Machine.prototype.executeRuntimeCode = function(runtimeName, code) {
 		}
 		if(runtimeName === 'manual') {
 	 log.debug('arming in machine')
-//		if(runtimeName === 'manual' || runtimeName === 'livecode') {
+//th		if(runtimeName === 'manual' || runtimeName === 'livecode') {
 			this.arm(null, config.machine.get('auth_timeout'));
 			return;
 		} else {

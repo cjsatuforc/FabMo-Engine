@@ -52,6 +52,7 @@ LiveCodeRuntime.prototype.connect = function(machine) {
 
 LiveCodeRuntime.prototype.disconnect = function() {
 //TH 	if(this.ok_to_disconnect) {
+  log.debug('at disconnect - ' + this.ok_to_disconnect +','+ this.stream);
 	if(this.ok_to_disconnect && !this.stream) {
 		log.info("DISCONNECTING LIVECODE RUNTIME")
 		this.driver.removeListener('status', this.status_handler);
