@@ -206,34 +206,10 @@ LiveCodeRuntime.prototype.maintainMotion = function() {
 //TH VERSION ... =~ "doMotion" as we just keep pumping here
 //LiveCodeRuntime.prototype.startMotion = function(axis, speed) {
 LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
-//var speed = 200;
-//var axis = "x";	
-//	var dir = speed < 0 ? -1.0 : 1.0;
-//	speed = Math.abs(speed);
-// if(this.moving) {
-// 	log.debug("startMotion: Already moving");
-// 	if(axis === this.currentAxis && speed === this.currentSpeed) {
-// 		this.maintainMotion();
-// 	} else {
-// 		// Deal with direction changes here
-// 	}
-// } else {
-//		log.debug("startMotion: Not moving yet.");
-//		this.currentAxis = axis;
-//		this.currentSpeed = speed;
-//		this.currentDirection = dir;
-//		this.renewDistance = speed*(T_RENEW/60000)*SAFETY_FACTOR;
-//		this.renewDistance = speed*(5000/60000)*SAFETY_FACTOR;
-//		this.moving = this.keep_moving = true;
-//		this.xMove = 100;
-//		this.yMove = 85;
-    //log.debug("what is " + this.toString());
-
 // if we're already moving ... 
 //    then set this.maintainMotion=true and leave module
 //    renew is called by timer
 // else
-//TH latest STREAM version
 // ... assuming for moment that we're already streaming or NOT
 // ... if NOT, this is first, else continuing, timer ENDS
 			if(!this.stream) {
@@ -272,7 +248,7 @@ LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
 			this.stream.write(move);
 			this.driver.prime();   // ?
 			setTimeout(function() {
-				this.renewMoves(); // * now ends streaming	
+				this.maintainMotion(); // * now ends streaming	
 			}.bind(this), T_RENEW);
 
 //		 this.renewMoves();
