@@ -196,7 +196,20 @@ LiveCodeRuntime.prototype.maintainMotion = function() {
 	log.debug('Timer Breaks Streaming');
 	if(this.moving) {
 		this.keep_moving = false;
-		this.stopMotion();		
+		this.stopMotion();	
+
+			this.driver.runStream(this.stream).then(function(stat) {
+              log.debug('HIT: another quit attempt')
+                 //??TH just setting default end??
+					log.info("Finished running stream: " + stat);
+					this.moving = false;
+					this.keep_moving = false;
+					this.stream = null;
+					this._changeState("idle");
+				}.bind(this));
+	
+
+
 	}	
 };
 
