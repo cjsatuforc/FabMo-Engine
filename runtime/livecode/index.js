@@ -201,7 +201,7 @@ LiveCodeRuntime.prototype.maintainMotion = function() {
 			//this.driver.runStream(this.stream).then(function(stat) {
             //  log.debug('HIT: another quit attempt')
                  //??TH just setting default end??
-					log.info("Finished running stream: " + stat);
+					log.info("Finished running stream: ");
 					this.moving = false;
 					this.keep_moving = false;
 					this.stream = null;
