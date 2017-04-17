@@ -314,12 +314,14 @@ function addHistoryEntries(jobs) {
   bindMenuEvents();
 }
 
-function bindMenuEvents() {
-  function hideDropDown() {
+function hideDropDown() {
     $('.dropDownWrapper').hide();
     $('.dropDown').hide();
     $('.commentBox').hide();
   }
+
+
+function bindMenuEvents() {
 
   $('.resubmitJob').off('click');
   $('.resubmitJob').click(function(e) {
@@ -537,7 +539,10 @@ function handleStatusReport(status) {
 				fabmo.navigate('/job/' + id + '/file');
 			} else if (Sortable.utils.is(ctrl, ".deleteJob")){
 				 fabmo.deleteJob(id);
+
 			} 
+
+
 		},
 
 	onMove : function(evt){
@@ -1161,8 +1166,6 @@ function findUpTag(el, id) {
 		$('#job_selector').click();
 	});
 
-
-
 	$('#clear-jobs').click(function(e) {
 		fabmo.clearJobQueue(function(err, data) {
 		updateQueue();
@@ -1217,6 +1220,7 @@ function findUpTag(el, id) {
 	}
 
 
+
 	$('#queue_table').on('touchstart, mousedown', '.job_item:first-child', function(e) {
     var el = e.target;
     var a = findUpTag(el, "actions");   // search <a ...>
@@ -1240,4 +1244,5 @@ function findUpTag(el, id) {
 		}
 	});
    
+
 	});

@@ -12,8 +12,9 @@
 
 }(this, function (io) {
   "use strict"
+
 var io = require("./socket.io.js");
-	
+
 var PING_TIMEOUT = 3000;
 var makePostData = function(obj, options) {
 	var file = null;
@@ -131,7 +132,7 @@ FabMoAPI.prototype.startVideoStreaming = function(callback){
     }.bind(this));
 
     this.videoSocket.on('connect', function() {
-      console.log("Video streaming websocket connected");
+      console.info("Video streaming websocket connected");
     }.bind(this));
 
     this.videoSocket.on('message', function(message) {console.info(" Video streaming websocket message: " + JSON.stringify(message))} );
