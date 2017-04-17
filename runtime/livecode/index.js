@@ -193,7 +193,7 @@ LiveCodeRuntime.prototype.renewMoves = function() {
 	if(this.moving && this.keep_moving) {
 		this.keep_moving = false;
 		var move = "";
-	  log.debug("liveStart-moveprep: " + this.yMove + "," + this.zMove + "," + this.speed);
+	  log.debug("liveStart-moveprep: " + this.xMove + "," + this.yMove + "," + this.zMove + "," + this.speed);
 	    if (this.xMove !== undefined) move += ('G0 X' + this.xMove.toFixed(5));
 	    if (this.yMove !== undefined) move += ('G0 Y' + this.yMove.toFixed(5));
 	    if (this.zMove !== undefined) move += ('G0 Z' + this.zMove.toFixed(5));
