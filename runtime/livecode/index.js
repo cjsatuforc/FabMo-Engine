@@ -187,8 +187,8 @@ LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
 		}
 	    this.stream.write('G90 ' + '\n'); // initialize this motion
 		//this.stream.write('G91 F' + this.currentSpeed.toFixed(3) + '\n');
-		this.renewMoves();
 	}	
+	this.renewMoves();
 };
 
 LiveCodeRuntime.prototype.renewMoves = function() {
