@@ -203,6 +203,7 @@ LiveCodeRuntime.prototype.renewMoves = function() {
 	    if (this.speed !== undefined) move += ('F' + this.speed.toFixed(3));
 	    move += '\n';
 
+	    this.stream.write(move); // keep pumping action
 		this.driver.prime();
 		setTimeout(function() {
 			//NOW timer STOPS action ... this.renewMoves();
