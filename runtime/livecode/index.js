@@ -172,7 +172,8 @@ LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
 	} else {
 		if(!this.stream) {
 			this.stream = new stream.PassThrough();
-			this._changeState("livecode");
+			this._changeState("manual");
+//th removed			this._changeState("livecode");
 			this.moving = this.keep_moving = true;
 			this.driver.runStream(this.stream).then(function(stat) {
 				log.info("Finished running stream: " + stat);
