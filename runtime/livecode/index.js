@@ -26,7 +26,8 @@ LiveCodeRuntime.prototype.toString = function() {
 //Check if auth is neeeded to execute code
 LiveCodeRuntime.prototype.needsAuth = function(s) {
 	//all manual needs auth (check) so just return true
-	return true;
+	//return true;
+	return false;
 };
 
 LiveCodeRuntime.prototype.connect = function(machine) {
@@ -61,6 +62,7 @@ LiveCodeRuntime.prototype.disconnect = function() {
 };
 
 LiveCodeRuntime.prototype._changeState = function(newstate, message) {
+  //NB ted, livecode not a state!
   log.debug("ChangingState ...  " + newstate);
 	if(newstate === "idle") {
 		this.ok_to_disconnect = true;
@@ -220,22 +222,7 @@ LiveCodeRuntime.prototype.stopMotion = function() {
 
 LiveCodeRuntime.prototype.fixedMove = function(axis, speed, distance) {
   log.debug("unexpected fixedMove in livecode");
-//TH now ENTIRELY DIFFERENT
-// 	if(this.moving) {
-// 		log.warn("fixedMove: Already moving");
-// 	} else {
-// 		axis = axis.toUpperCase();
-// 		if('XYZABCUVW'.indexOf(axis) >= 0) {
-// 			var move;
-// 			if(speed) {
-// 				move = 'G91\nG1 ' + axis + distance.toFixed(5) + ' F' + speed.toFixed(3) + '\n';
-// 			} else {
-// 				move = 'G91\nG0 ' + axis + distance.toFixed(5) + '\n';				
-// 			}
-// 			this.driver.gcodeWrite(move);
-// log.debug("livecodeFIXEDMOVE >> " + axis);
-// 		}
-// 	}
+//TH not used in livecode
 };
 
 LiveCodeRuntime.prototype.pause = function() {
