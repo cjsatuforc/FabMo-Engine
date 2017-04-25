@@ -173,24 +173,30 @@ G2.prototype._createCycleContext = function() {
 	var st = new stream.PassThrough();
 	st.setEncoding('utf8');
 	this._streamDone = false;
+	this.lineBuffer = []
+	
 	// TODO factor this out
 	st.write('G90\n')
 	st.write('M100 ({out4:1})\n')
 	st.on('data', function(chunk) {
 		chunk = chunk.toString();
+		var newLines = false;
 		for(var i=0; i<chunk.length; i++) {
 			ch = chunk[i];
 			this.lineBuffer.push(ch);
 			if(ch === '\n') {
+				newLines = true;
 				var s = this.lineBuffer.join('').trim();
 				this.gcode_queue.enqueue(s);
 				if(this.gcode_queue.getLength() >= 10) {
-					log.info("Driver is primed (>= 10 moves)")
+//log.info("Driver is primed (>= 10 moves)")
 					this._primed = true;
 				}
-				this.sendMore();
 				this.lineBuffer = [];
 			}
+		}
+		if(newLines) {
+			this.sendMore();
 		}
 	}.bind(this));
 	st.on('end', function() {
@@ -447,6 +453,15 @@ G2.prototype.handleStatusReport = function(response) {
 						this.lines_to_send = 4
 						this.quit_pending = false;
 						this.pause_flag = false;
+						break;
+				}
+			} else {
+				switch(response.sr.stat) {
+					case STAT_HOLDING:
+						this.pause_flag = true;
+						if(this.context) {
+							this.context.pause()
+						}
 						break;
 				}
 			}
@@ -803,6 +818,7 @@ G2.prototype.runStream = function(s) {
 G2.prototype.runFile = function(filename) {
 	var st = fs.createReadStream(filename);
 	var ln = new LineNumberer();
+	//return this.runStream(st);
 	return this.runStream(st.pipe(ln));
 }
 
