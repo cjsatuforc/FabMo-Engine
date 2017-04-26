@@ -242,6 +242,8 @@ LiveCodeRuntime.prototype.stopMotion = function() {
 
 	this.driver.quit();
 
+	g2.quit(); // what else can I do?
+
 };
 
 LiveCodeRuntime.prototype.fixedMove = function(axis, speed, distance) {
