@@ -7,7 +7,7 @@ var stream = require('stream');
 // var T_RENEW = 5000;
 // var SAFETY_FACTOR = 1.25;
 // var RENEW_SEGMENTS = 15;
-var T_RENEW = 5000;  // new delay to end streaming
+var T_RENEW = 3000;  // new delay to end streaming
 //var T_RENEW = 250;
 var SAFETY_FACTOR = 2;
 var RENEW_SEGMENTS = 3;
@@ -34,7 +34,8 @@ LiveCodeRuntime.prototype.connect = function(machine) {
 	this.machine = machine;
 	this.driver = machine.driver;
 	this.ok_to_disconnect = true;
-	this.machine.setState(this, "livecode");
+//	this.machine.setState(this, "livecode");
+	this.machine.setState(this, "manual");
 
 	// True while the tool is known to be in motion
 	this.moving = false;
@@ -43,8 +44,8 @@ LiveCodeRuntime.prototype.connect = function(machine) {
 	this.keep_moving = false;
 
 	// Current trajectory
-	this.current_axis = null;
-	this.current_speed = null;
+	this.current_axis = null; //TH not needed
+	this.current_speed = null; //TH not needed
 	this.completeCallback = null;
 	this.status_handler = this._onG2Status.bind(this);
 	this.driver.on('status',this.status_handler);
@@ -131,11 +132,11 @@ log.debug("Recieved livecode command: " + JSON.stringify(code));
 			this.stopMotion();
 			break;
 
-		case 'maint':
+		case 'maint': //TH ??
 			this.maintainMotion();
 			break;
 
-		case 'fixed':
+		case 'fixed': //TH not neded
 			this.fixedMove(code.axis, code.speed, code.distance);
 			break;
 
@@ -159,29 +160,41 @@ LiveCodeRuntime.prototype.maintainMotion = function() {
 //ManualRuntime.prototype.startMotion = function(axis, speed) {
 LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
     // TH 3 axes ...
-		this.xMove = xloc;
-		this.yMove = yloc;
-		this.zMove = zloc;
-	    this.speed = speed;
+	this.xMove = xloc;
+	this.yMove = yloc;
+	this.zMove = zloc;
+	this.speed = speed;
 //** NB *Will be using timer to STOP rather than START
 	if(this.moving) {
 		if(xloc || yloc || zloc ) {
 		//  if we're in action, keep pumping stuff via renewMoves ...
+		//  ... using data above
 			this.maintainMotion();
-		} 
+		} else {
+			log.debug("not seeing any values, quit?")
+			// time-out here?
+		}
+
 	} else {
 		if(!this.stream) {
 			this.stream = new stream.PassThrough();
 			this._changeState("manual");
-//th removed			this._changeState("livecode");
+//TH			this._changeState("livecode");
 			this.moving = this.keep_moving = true;
 			this.driver.runStream(this.stream).then(function(stat) {
-				log.info("Finished running stream: " + stat);
+				log.info("FINISHED running stream: " + stat);
 				this.moving = false;
 				this.keep_moving = false;
 				this.stream = null;
 				this._changeState("idle");
 			}.bind(this));
+			//set a stop timer?? (only one)
+			log.debug("setting stop timer")
+			setTimeout(function() {
+				//NOW timer STOPS action ... this.renewMoves();
+				this.stopMotion();	
+			}.bind(this), T_RENEW);
+
 		} else {
 			throw new Error("Trying to create a new motion stream when one already exists!");
 		}
@@ -205,17 +218,17 @@ LiveCodeRuntime.prototype.renewMoves = function() {
 
 	    this.stream.write(move); // keep pumping action
 		this.driver.prime();
-		setTimeout(function() {
-			//NOW timer STOPS action ... this.renewMoves();
-			this.stopMotion();	
-		}.bind(this), T_RENEW);
+		// setTimeout(function() {
+		// 	//NOW timer STOPS action ... this.renewMoves();
+		// 	this.stopMotion();	
+		// }.bind(this), T_RENEW);
 	} else {
 			this.stopMotion();
 	}
 };
 
 LiveCodeRuntime.prototype.stopMotion = function() {
-  log.debug("stopMotion and break stream in livecode");
+  log.debug("got a stopMotion and break stream in livecode");
 	// if(this._limit()) { return; }
 	this.keep_moving = false;
 	this.moving = false;
