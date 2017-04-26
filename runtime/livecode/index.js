@@ -234,14 +234,13 @@ LiveCodeRuntime.prototype.stopMotion = function() {
 	this.keep_moving = false;
 	this.moving = false;
 
+	this.stream.end();
+
 				log.info("ALT-FINISHED running stream!");
 				this.stream = null;
 				this._changeState("idle");
 
-
-
 	this.driver.quit();
-	this.stream.end();
 
 };
 
