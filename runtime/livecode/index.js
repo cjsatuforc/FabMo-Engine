@@ -229,6 +229,7 @@ LiveCodeRuntime.prototype.renewMoves = function() {
 
 LiveCodeRuntime.prototype.stopMotion = function() {
   log.debug("got a stopMotion and break stream in livecode");
+  //TH kludged all possible stop stuff here 
 	// if(this._limit()) { return; }
 	this.keep_moving = false;
 	this.moving = false;
@@ -240,6 +241,7 @@ LiveCodeRuntime.prototype.stopMotion = function() {
 
 
 	this.driver.quit();
+	this.stream.end();
 
 };
 
