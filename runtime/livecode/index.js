@@ -232,7 +232,15 @@ LiveCodeRuntime.prototype.stopMotion = function() {
 	// if(this._limit()) { return; }
 	this.keep_moving = false;
 	this.moving = false;
+
+				log.info("ALT-FINISHED running stream!");
+				this.stream = null;
+				this._changeState("idle");
+
+
+
 	this.driver.quit();
+
 };
 
 LiveCodeRuntime.prototype.fixedMove = function(axis, speed, distance) {
