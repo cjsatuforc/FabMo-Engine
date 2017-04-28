@@ -30,12 +30,13 @@ log.debug("switching in direct - " + rt); //TH
 					case 'g':
 					case 'nc':
 					case 'gcode':
+					case 'livecode':  //TH trying this now ... don't know if even needed
 						machine.gcode(req.params.cmd);
 						break;
 
-					case 'livecode':   //TH added
-						machine.livecode(req.params.cmd);
-						break;
+					// case 'livecode':   //TH added
+					// 	machine.livecode(req.params.cmd);
+					// 	break;
 
 					default:
 						answer = {
