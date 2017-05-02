@@ -231,14 +231,14 @@ LiveCodeRuntime.prototype.stopMotion = function() {
   log.debug("got a stopMotion and break stream in livecode");
   //TH kludged all possible stop stuff here 
 	// if(this._limit()) { return; }
-	this.keep_moving = false;
-	this.moving = false;
+	//"this.keep_moving = false;
+	//"."this.moving = false;
 
-	this.stream.end();
+	//"this.stream.end();
 
-				log.info("ALT-FINISHED running stream!");
-				this.stream = null;
-				this._changeState("idle");
+				log.debug("call drive quit from stopMotion");
+	//"			this.stream = null;
+	//"			this._changeState("idle");
 
 	this.driver.quit();
 
