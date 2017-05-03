@@ -191,6 +191,7 @@ LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
 				//NOW timer STOPS action ... this.renewMoves();
 				this.stopMotion();	
 			}.bind(this), T_RENEW);
+			log.debug("resetting > " + liveTimer)
 
 		} else {
 			throw new Error("Trying to create a new motion stream when one already exists!");
@@ -222,7 +223,7 @@ LiveCodeRuntime.prototype.renewMoves = function() {
 };
 
 LiveCodeRuntime.prototype.stopMotion = function() {
-    log.debug("END-ing; Calling driver-quit at stopMotion in livecode > " + liveTimer);
+    log.debug("END-ing; Calling driver-quit at stopMotion in livecode");
 	this.driver.quit();
 };
 
