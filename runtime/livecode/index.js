@@ -89,7 +89,6 @@ LiveCodeRuntime.prototype._limit = function() {
 	return false;
 };
 
-
 LiveCodeRuntime.prototype._onG2Status = function(status) {
 	switch(status.stat) {
 		case this.driver.STAT_INTERLOCK:
@@ -107,6 +106,12 @@ LiveCodeRuntime.prototype._onG2Status = function(status) {
 		}
 	}
 	this.machine.emit('status',this.machine.status);
+		log.debug('resetting liveTimer @status');
+        clearTimeout(liveTimer);                // Update terminating Timer while still moving
+		liveTimer = setTimeout(function() {
+			this.stopMotion();	
+		}.bind(this), T_RENEW);
+
 };
 
 //TH Modeled after "manual runtime"; but differs somewhat in way functionality is used
@@ -126,7 +131,7 @@ log.debug("Recieved livecode command: " + JSON.stringify(code));
 			this.startMotion(code.xloc, code.yloc, code.zloc, code.speed);
 			break;
 
-		case 'stop':
+		case 'stop':   // TH 'stop' can be used to clear, but never required to shorten move
 			this.stopMotion();
 			break;
 
@@ -205,7 +210,7 @@ LiveCodeRuntime.prototype.renewMoves = function() {
 
 	    this.stream.write(move);                // PUMP ACTION HERE
 		this.driver.prime();
-		log.debug("resetting liveTimer > " + liveTimer)
+		log.debug('resetting liveTimer @renew');
         clearTimeout(liveTimer);                // Update terminating Timer with each new move
 		liveTimer = setTimeout(function() {
 			this.stopMotion();	
