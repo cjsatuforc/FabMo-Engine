@@ -186,12 +186,12 @@ LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
 				this.stream = null;
 				this._changeState("idle");
 			}.bind(this));
-			//set a stop timer?? (only one)
-			log.debug("resetting liveTimer > " + liveTimer)
-			var liveTimer = setTimeout(function() {
-				//NOW timer STOPS action ... this.renewMoves();
-				this.stopMotion();	
-			}.bind(this), T_RENEW);
+			// //set a stop timer?? (only one)
+			// log.debug("resetting liveTimer > " + liveTimer)
+			// var liveTimer = setTimeout(function() {
+			// 	//NOW timer STOPS action ... this.renewMoves();
+			// 	this.stopMotion();	
+			// }.bind(this), T_RENEW);
 
 		} else {
 			throw new Error("Trying to create a new motion stream when one already exists!");
@@ -216,6 +216,12 @@ LiveCodeRuntime.prototype.renewMoves = function() {
 
 	    this.stream.write(move);                // PUMP ACTION HERE
 		this.driver.prime();
+		//set a stop timer?? (only one)
+		log.debug("resetting liveTimer > " + liveTimer)
+		var liveTimer = setTimeout(function() {
+			//NOW timer STOPS action ... this.renewMoves();
+			this.stopMotion();	
+		}.bind(this), T_RENEW);
 
 	} else {
 			this.stopMotion();
