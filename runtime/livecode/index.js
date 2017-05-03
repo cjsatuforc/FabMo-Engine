@@ -187,11 +187,11 @@ LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
 				this._changeState("idle");
 			}.bind(this));
 			//set a stop timer?? (only one)
+			log.debug("resetting liveTimer > " + liveTimer)
 			var liveTimer = setTimeout(function() {
 				//NOW timer STOPS action ... this.renewMoves();
 				this.stopMotion();	
 			}.bind(this), T_RENEW);
-			log.debug("resetting > " + liveTimer)
 
 		} else {
 			throw new Error("Trying to create a new motion stream when one already exists!");
