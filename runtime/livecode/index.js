@@ -111,7 +111,7 @@ LiveCodeRuntime.prototype._onG2Status = function(status) {
 	this.machine.emit('status',this.machine.status);
 };
 
-
+//TH Modeled after "manual runtime"; but differs somewhat in way functionality is used
 LiveCodeRuntime.prototype.executeCode = function(code, callback) {
 	this.completeCallback = callback;
 log.debug("Recieved livecode command: " + JSON.stringify(code));
@@ -124,7 +124,7 @@ log.debug("Recieved livecode command: " + JSON.stringify(code));
 
 	switch(code.cmd) {
 		case 'start':
-//			this.startMotion(code.axis, code.speed);
+//			this.startMotion(code.axis, code.speed); // ...TH we pass more than just axis and speed
 			this.startMotion(code.xloc, code.yloc, code.zloc, code.speed);
 			break;
 
@@ -132,12 +132,8 @@ log.debug("Recieved livecode command: " + JSON.stringify(code));
 			this.stopMotion();
 			break;
 
-		case 'maint': //TH ??
+		case 'maint': 
 			this.maintainMotion();
-			break;
-
-		case 'fixed': //TH not neded
-			this.fixedMove(code.axis, code.speed, code.distance);
 			break;
 
 		default:
@@ -153,7 +149,7 @@ LiveCodeRuntime.prototype.maintainMotion = function() {
 };
 
 /*
- * Called to set the tool into motion.
+ * Called to set the tool into motion and ...
  * If the tool is already moving, we keep pumping new commands
  */
 //TH VERSION ... really more~ "doMotion" as we just keep pumping here
@@ -204,6 +200,7 @@ LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
 
 LiveCodeRuntime.prototype.renewMoves = function() {
     log.debug("renewingMove in livecode");
+	var liveTimer;
 	if(this.moving && this.keep_moving) {
 		this.keep_moving = false;
 		var move = "";
@@ -218,13 +215,14 @@ LiveCodeRuntime.prototype.renewMoves = function() {
 		this.driver.prime();
 		//set a stop timer?? (only one)
 		log.debug("resetting liveTimer > " + liveTimer)
-		var liveTimer = setTimeout(function() {
+        clearTimeout(liveTimer);
+		liveTimer = setTimeout(function() {
 			//NOW timer STOPS action ... this.renewMoves();
 			this.stopMotion();	
 		}.bind(this), T_RENEW);
 
 	} else {
-			this.stopMotion();
+		this.stopMotion();
 	}
 };
 
