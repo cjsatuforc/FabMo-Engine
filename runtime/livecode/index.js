@@ -2,6 +2,8 @@ var log = require('../../log').logger('livecode');
 var config = require('../../config');
 var stream = require('stream');
 
+var liveTimer; // TH ...for halting livecode action
+
 // TH my prev values
 // //var T_RENEW = 500;
 // var T_RENEW = 5000;
@@ -200,7 +202,7 @@ LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
 
 LiveCodeRuntime.prototype.renewMoves = function() {
     log.debug("renewingMove in livecode");
-	var liveTimer;
+//	var liveTimer;
 	if(this.moving && this.keep_moving) {
 		this.keep_moving = false;
 		var move = "";
