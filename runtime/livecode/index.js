@@ -169,7 +169,7 @@ LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
 		    //  ... using data above
 			this.maintainMotion();
 		} else {
-			log.debug("not seeing any values, quit?")
+			log.debug("not seeing any values, quit?");
 			// time-out here?
 		}
 
