@@ -187,7 +187,7 @@ LiveCodeRuntime.prototype.startMotion = function(xloc, yloc, zloc, speed) {
 				this._changeState("idle");
 			}.bind(this));
 			//set a stop timer?? (only one)
-			setTimeout(function() {
+			var liveTimer = setTimeout(function() {
 				//NOW timer STOPS action ... this.renewMoves();
 				this.stopMotion();	
 			}.bind(this), T_RENEW);
@@ -222,7 +222,7 @@ LiveCodeRuntime.prototype.renewMoves = function() {
 };
 
 LiveCodeRuntime.prototype.stopMotion = function() {
-    log.debug("to END; Calling driver-quit at stopMotion in livecode");
+    log.debug("END-ing; Calling driver-quit at stopMotion in livecode > " + liveTimer);
 	this.driver.quit();
 };
 
