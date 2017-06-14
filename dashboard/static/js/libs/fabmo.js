@@ -696,7 +696,7 @@ FabMoDashboard.prototype.manualStop = function() {
 	this._call("manualStop",{}, callback);
 }
 
-//TH WORKING ON live move version using manual move as template; **currently ONLY using "livecodeStart"
+//TH WORKING ON live move version using manual move as template; **currently ONLY using "livecodeStart" and "livecodeStop"
 
 // FabMoDashboard.prototype.livecodeStart = function(axis, speed, callback) {
 // 	this._call("livecodeStart",{"axis":axis, "speed":speed}, callback);
