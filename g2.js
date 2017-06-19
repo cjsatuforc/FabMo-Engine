@@ -70,6 +70,7 @@ CycleContext.prototype.firm = function() {
 					handlers[i].f(handlers[i].data);
 				}
 			}
+			this.firmed = true;
 		} catch(e) {
 			delete this.eventQueue;
 			throw e;
@@ -166,7 +167,6 @@ function G2() {
 util.inherits(G2, events.EventEmitter);
 
 G2.prototype._createCycleContext = function() {
-	console.log("Creating a cycle context.")
 	if(this.context) {
         throw new Error("Cannot create a new cycle context.  One already exists.");
 	}
@@ -189,7 +189,6 @@ G2.prototype._createCycleContext = function() {
 				var s = this.lineBuffer.join('').trim();
 				this.gcode_queue.enqueue(s);
 				if(this.gcode_queue.getLength() >= 10) {
-//log.info("Driver is primed (>= 10 moves)")
 					this._primed = true;
 				}
 				this.lineBuffer = [];
@@ -286,29 +285,17 @@ G2.prototype.clearAlarm = function() {
 
 G2.prototype.setUnits = function(units, callback) {
 	if(units === 0 || units == 'in') {
-		log.info('Setting driver units to INCH');
 		gc = 'G20';
 		units = 0;
 	} else if(units === 1 || units === 'mm') {
-		log.info('Setting driver units to MM');
 		gc = 'G21';
 		units = 1;
 	} else {
 		return callback(new Error('Invalid unit setting: ' + units));
 	}
 	this.runString(gc).then(function() {
-
-	callback(null);
-	});
-	/*
-	this.set('gun', units, function() {
-		console.log("gun callback")
-		this.once('status', function(status) {
-			callback(null);
-		});
 		callback(null);
-	}.bind(this));
-	*/
+	});
 }
 
 G2.prototype.requestStatusReport = function(callback) {
@@ -432,11 +419,16 @@ G2.prototype.handleStatusReport = function(response) {
 		}
 
 		if('stat' in response.sr) {
-			if(response.sr.stat === STAT_STOP) {
-				if(this.flushcallback) {
-					this.flushcallback(null);
-					this.flushcallback = null;
-				}
+			switch(response.sr.stat) {
+				case STAT_STOP:
+					if(this.flushcallback) {
+						this.flushcallback(null);
+						this.flushcallback = null;
+					}
+					break;
+				case STAT_END:
+					this.status.line = null;
+					break;
 			}
 
 			if(this.quit_pending) {
@@ -558,7 +550,10 @@ G2.prototype.feedHold = function(callback) {
 	this.pause_flag = true;
 	this.flooded = false;
 	typeof callback === 'function' && this.once('state', callback);
-	log.debug("Sending a feedhold");
+	if(this.status.stat === this.STAT_PROBE) {
+        return this.quit()
+    }
+    log.debug("Sending a feedhold");
 	if(this.context) {
 		this.context.pause();
 	}
@@ -603,7 +598,6 @@ G2.prototype.resume = function() {
 
 
 G2.prototype.quit = function() {
-
 	if(this.quit_pending) {
 		log.warn("Not quitting because a quit is already pending.");
 		return;

@@ -277,7 +277,6 @@ SBPRuntime.prototype.simulateString = function(s, callback) {
 			chunks.push(chunk);
 		});
 		st.on('end', function() {
-			console.log("got end of program");
 			callback(null, chunks.join(''));
 		});
 	} else {
@@ -321,9 +320,6 @@ SBPRuntime.prototype._onG2Status = function(status) {
 
 	if(this.driver.status.stat == this.driver.STAT_PROBE) {
 		var keys = ['posx','posy','posz','posa','posb','posc'];
-		keys.forEach(function(key) {
-			console.log(key);
-		});
 	}
 
 	this.machine.emit('status',this.machine.status);
@@ -488,6 +484,7 @@ SBPRuntime.prototype._run = function() {
 				this.driver.runStream(this.stream)
 				.on('stat', onStat)
 				.then(function() {
+					this.file_stack = []
 					this._end();
 				}.bind(this));
 			}
@@ -513,7 +510,7 @@ SBPRuntime.prototype._executeNext = function() {
 	}
 
 	if(this.pending_error) {
-		return this._end(e);
+		return this._end(this.pending_error);
 	}
 
 	if(this.paused) {
@@ -590,8 +587,11 @@ SBPRuntime.prototype.prime = function() {
 SBPRuntime.prototype._end = function(error) {
 
 	error = error ? error.message || error : null;
+	if(!error) {
+		error = this.end_message || null;
+	}
 	log.debug("Calling the non-nested (toplevel) end");
-    log.debug(error)
+    if(error) {log.error(error)}
 	var cleanup = function(error) {
 		if(this.machine && error) {
 			this.machine.setState(this, 'stopped', {'error' : error });
@@ -608,9 +608,9 @@ SBPRuntime.prototype._end = function(error) {
 
 	if(error) {
         if(this.machine) {
-		this.machine.restoreDriverState(function(err, result) {
-			cleanup();
-		}.bind(this));
+			this.machine.restoreDriverState(function(err, result) {
+				cleanup(error);
+			}.bind(this));
         } else {
             cleanup(error);
         }
@@ -1236,6 +1236,7 @@ SBPRuntime.prototype._pushFileStack = function() {
 	//frame.user_vars = this.user_vars
 	//frame.current_chunk = this.current_chunk
 	frame.end_callback = this.end_callback
+	frame.end_message = this.end_message
 	frame.label_index = this.label_index
 	this.file_stack.push(frame)
 }
@@ -1249,6 +1250,7 @@ SBPRuntime.prototype._popFileStack = function() {
 	this.label_index = frame.label_index;
 	//this.current_chunk = frame.current_chunk
 	this.end_callback = frame.end_callback
+	this.end_message = frame.end_message
 }
 
 // Add GCode to the current chunk, which is dispatched on a break or end of program
