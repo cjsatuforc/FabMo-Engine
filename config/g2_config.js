@@ -35,7 +35,8 @@ G2Config.prototype.changeUnits = function(units, callback) {
 
 G2Config.prototype.getFromDriver = function(callback) {
 	var keys = Object.keys(this._cache)
-	this.driver.get(Object.keys(this._cache), function(err, values) {
+	// TODO call this earlier potentially in config.init()
+	this.driver.get(Object.keys({$:'n'}), function(err, values) {
 		if(err) {
 			callback(err);
 		} else {
@@ -49,8 +50,20 @@ G2Config.prototype.getFromDriver = function(callback) {
 				callback(null, obj);
 			}
 		}
-
 	});
+
+	setTimeout(function () {
+		var data = this.driver.schema_data;
+		if (data) {
+			for (var i = 0; i < data.length; i++) {
+				var obj = data[i];
+				var topLevelKey = Object.keys(obj)[0];
+				for (key in obj[topLevelKey]) {
+					this._cache[topLevelKey + key] = obj[topLevelKey][key];
+				}
+			}
+		}
+	}.bind(this), 10000);
 }
 
 // Update the configuration with the data provided (data is just an object with configuration keys/values)

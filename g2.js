@@ -132,6 +132,7 @@ function G2() {
 	this._seen_ready = false;
 	this.gcode_queue = new Queue();
 	this.command_queue = new Queue();
+	this.schema_data = [];
 
 	this.pause_flag = false;
 	this.connected = false;
@@ -513,6 +514,17 @@ G2.prototype.onMessage = function(response) {
 		this.emit('response', false, response.r);
 	} else {
 		r = response;
+	}
+
+	// TODO this should be a dictionary of all keys, POC here
+	var schemaKeys = ['sys', '1', '2', '3', '4', 'x', 'y', 'z', 'a', 'b', 'c', 'g54'];
+	var topLevelKeys = Object.keys(r);
+	var topLevelKey = topLevelKeys[0];
+
+	for (var i = 0; i < schemaKeys.length; i++) {
+		if (schemaKeys[i] == topLevelKey) {
+			this.schema_data.push(r);
+		}
 	}
 
 	// Deal with G2 status (top priority)
