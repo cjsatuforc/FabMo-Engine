@@ -521,10 +521,8 @@ G2.prototype.onMessage = function(response) {
 	var topLevelKeys = Object.keys(r);
 	var topLevelKey = topLevelKeys[0];
 
-	for (var i = 0; i < schemaKeys.length; i++) {
-		if (schemaKeys[i] == topLevelKey) {
-			this.schema_data.push(r);
-		}
+	if (schemaKeys.indexOf(topLevelKey) !== -1) {
+		this.schema_data.push(r);
 	}
 
 	// Deal with G2 status (top priority)
