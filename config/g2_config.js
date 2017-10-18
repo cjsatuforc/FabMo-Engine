@@ -33,6 +33,13 @@ G2Config.prototype.changeUnits = function(units, callback) {
 	}.bind(this));
 }
 
+function extend(obj, src) {
+		for (var key in src) {
+			if (src.hasOwnProperty(key)) obj[key] = src[key];
+		}
+		return obj;
+	}
+
 G2Config.prototype.getFromDriver = function(callback) {
 	var keys = Object.keys(this._cache)
 	// TODO call this earlier potentially in config.init()
@@ -54,13 +61,11 @@ G2Config.prototype.getFromDriver = function(callback) {
 
 	setTimeout(function () {
 		var data = this.driver.schema_data;
+		this._cache.root = {};
 		if (data) {
 			for (var i = 0; i < data.length; i++) {
 				var obj = data[i];
-				var topLevelKey = Object.keys(obj)[0];
-				for (key in obj[topLevelKey]) {
-					this._cache[topLevelKey + key] = obj[topLevelKey][key];
-				}
+				this._cache.root = extend(obj, this._cache.root);
 			}
 		}
 	}.bind(this), 10000);

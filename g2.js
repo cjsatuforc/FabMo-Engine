@@ -516,8 +516,10 @@ G2.prototype.onMessage = function(response) {
 		r = response;
 	}
 
-	// TODO this should be a dictionary of all keys, POC here
-	var schemaKeys = ['sys', '1', '2', '3', '4', 'x', 'y', 'z', 'a', 'b', 'c', 'g54'];
+	var schemaKeys = ['1', '2', '3', '4', '5', 'sys', 'x', 'y', 'z', 'a', 'b', 'c', 'di1', 'di2', 'di3', 'di4', 'di5',
+		'di6', 'di7', 'di8', 'di9', 'do1', 'do2', 'do3', 'do4', 'do5', 'do6', 'do7', 'do8', 'do9', 'do10', 'do11',
+		'do12', 'do13', 'he1', 'he2', 'he3', 'p1', 'g54', 'g55', 'g56', 'g57', 'g58', 'g59', 'g92', 'g28'];
+
 	var topLevelKeys = Object.keys(r);
 	var topLevelKey = topLevelKeys[0];
 
