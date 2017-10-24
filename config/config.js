@@ -197,11 +197,20 @@ Config.getDataDir = function(name) {
 		case 'win64':
 			base = 'c:\\fabmo';
 			break;
+		case 'darwin':
+			var os = require('os');
+			// var userInfo = os.userInfo();
+			if (process.env.UID === 0) {
+				base = '/opt/fabmo';
+			} else {
+				base = path.normalize(path.join(process.env.HOME, 'Library', 'Application Support', 'FabMo'));
+			}
+			break;
 		default:
 			base = '/opt/fabmo';
 	}
 	if(name) {
-		dir = base + path.sep + name;
+		dir = path.join(base, name);
 	} else {
 		dir = base;
 	}
@@ -217,7 +226,7 @@ Config.deleteUserMacros = function(callback) {
 	var installedMacrosDir = Config.getDataDir('macros');
 	fs.readdir(installedMacrosDir, function(err, files) {
 		if(err) { return callback(err); }
-	  	try {  		
+	  	try {
 		  	files.forEach(function(file) {
 		  		var to_delete = path.join(installedMacrosDir, file);
 		  		console.log("Deleting " + to_delete)
@@ -235,9 +244,9 @@ Config.deleteUserConfig = function(callback) {
 	var config_dir = Config.getDataDir('config');
 	fs.readdir(config_dir, function(err, files) {
 		if(err) { return callback(err); }
-	  	try {  		
+	  	try {
 		  	files.forEach(function(file) {
-		  		if(file.search(/auth_secret|engine\.json|updater\.json$/i) === -1) { 
+		  		if(file.search(/auth_secret|engine\.json|updater\.json$/i) === -1) {
 					var p = path.join(config_dir, file);
 			  		fs.removeSync(p);
 		  		}
