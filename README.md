@@ -60,14 +60,33 @@ To install the engine in the "standard" location on the Raspberry Pi 3, perform 
 
 To install the engine in the standard location on a Mac, follow the steps below.  This method is used by the FabMo team for development in the OSX environment.
 
-1. Install Node.js - You'll need an older version: 0.12.7 to be compatible with FabMo.  To install an older version through homebrew (homebrew is highly recommended) do this: http://apple.stackexchange.com/a/207883/67692
-2. Install npm - you can also do this with homebrew
-3. Create the fabmo directory: `mkdir -p /fabmo`
-4. Create the fabmo data directory: `mkdir -p /opt/fabmo`
-2. Clone the engine source `/fabmo/engine` with `git clone https://github.com/FabMo/FabMo-Engine /fabmo/engine`
-2. Checkout the appropriate branch of the source tree.  The `release` branch is the most recent stable release.  (`git checkout release` from the `/fabmo/engine` directory)
-3. Install dependencies using npm: `cd /fabmo/engine; npm install`
-4. Run the engine using the instructions below.  Make sure that the G2 motion control board is connected the first time you run the engine.  The engine auto-detects the USB port and saves this setting on first run, and if the motion controller is absent, it won't be properly detected.  If you need to change ports later on, the port settings are located in `/opt/fabmo/config/engine.json`
+Note that on OS X it's recommended that you run FabMo as a non-`root` user. The configuration will be stored at `~Library/Application\ Support/FabMo/` where `~` refers to the home directory of that user.
+
+1. Install XCode command line tools. You can do this with `xcode-select --install`
+  - It will report if they are already installed.
+1. Install Node.js - You'll need an older version: `0.12.*` to be compatible with FabMo.
+  - You can use [the node utility n](https://github.com/tj/n) to install an older version. Follow the [instructions to `n`](https://github.com/tj/n#installation) first.
+  - If you need your system-wide default node to be LTS or such, you can install `v0.12.18` like so (once `n` is installed):
+    ```bash
+    sudo n v0.12.18
+    ```
+  - Now that node v0.12.18 is installed, in the terminal where you want to run FabMo (*each time*):
+    ```bash
+    # may need adjusted for non-bash:
+    export PATH=`dirname $(n which v0.12.18)`:$PATH
+
+    # Then this:
+    node -v
+    # should report as v0.12.18
+    ```
+2. `npm` should be installed along with node, and the change of `PATH` will also switch which `npm` is used. You must *not* update the `npm` that is installed with the older node.
+3. Create the fabmo directory, for example: `mkdir -p ~/fabmo`
+  - You can place it almost anywhere in your home directory, however there should be no spaces or special characters (letters, numbers, `-`, and `_` are all safe) in the path.
+  - Remember to adjust the following instructions to match the new location.
+2. Clone the engine source `~/fabmo/engine` with `git clone https://github.com/FabMo/FabMo-Engine ~/fabmo/engine`
+2. Checkout the appropriate branch of the source tree.  The `release` branch is the most recent stable release.  (`git checkout release` from the `~/fabmo/engine` directory)
+3. Install dependencies using npm: `cd ~/fabmo/engine; npm install`
+4. Run the engine using the instructions below.  Make sure that the G2 motion control board is connected the first time you run the engine.  The engine auto-detects the USB port and saves this setting on first run, and if the motion controller is absent, it won't be properly detected.  If you need to change ports later on, the port settings are located in `~Library/Application\ Support/FabMo/config/engine.json`
 
 ## Running the Engine
 For debugging the engine, you can run it directly from the command prompt with `npm start` or `node server.js`  Running with `npm run debug` puts the engine in debug mode, in which it does more agressive app reloading.  (This is recommended for app development, particularly for system apps)  `npm debug slow` introduces deliberate network latency on GET/POST requests, for testing.  This latency can be adjusted in `engine.js`
