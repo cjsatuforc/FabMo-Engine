@@ -516,16 +516,16 @@ G2.prototype.onMessage = function(response) {
 		r = response;
 	}
 
-	var schemaKeys = ['1', '2', '3', '4', '5', 'sys', 'x', 'y', 'z', 'a', 'b', 'c', 'di1', 'di2', 'di3', 'di4', 'di5',
-		'di6', 'di7', 'di8', 'di9', 'do1', 'do2', 'do3', 'do4', 'do5', 'do6', 'do7', 'do8', 'do9', 'do10', 'do11',
-		'do12', 'do13', 'he1', 'he2', 'he3', 'p1', 'g54', 'g55', 'g56', 'g57', 'g58', 'g59', 'g92', 'g28'];
-
-	var topLevelKeys = Object.keys(r);
-	var topLevelKey = topLevelKeys[0];
-
-	if (schemaKeys.indexOf(topLevelKey) !== -1) {
-		this.schema_data.push(r);
-	}
+	// var schemaKeys = ['1', '2', '3', '4', '5', 'sys', 'x', 'y', 'z', 'a', 'b', 'c', 'di1', 'di2', 'di3', 'di4', 'di5',
+	// 	'di6', 'di7', 'di8', 'di9', 'do1', 'do2', 'do3', 'do4', 'do5', 'do6', 'do7', 'do8', 'do9', 'do10', 'do11',
+	// 	'do12', 'do13', 'he1', 'he2', 'he3', 'p1', 'g54', 'g55', 'g56', 'g57', 'g58', 'g59', 'g92', 'g28'];
+	//
+	// var topLevelKeys = Object.keys(r);
+	// var topLevelKey = topLevelKeys[0];
+	//
+	// if (schemaKeys.indexOf(topLevelKey) !== -1) {
+	// 	this.schema_data.push(r);
+	// }
 
 	// Deal with G2 status (top priority)
 	this.handleStatusReport(r);
@@ -542,8 +542,8 @@ G2.prototype.onMessage = function(response) {
 	// Emitted everytime a message is received, regardless of content
 	this.emit('message', response);
 
-	for(var key in r) {
-		if(key in this.readers) {
+	for (var key in r) {
+		if (key in this.readers) {
 			if(typeof this.readers[key][this.readers[key].length-1] === 'function') {
 				//if(r[key] !== null) {
 					callback = this.readers[key].shift();
@@ -553,6 +553,16 @@ G2.prototype.onMessage = function(response) {
 						callback(null, r[key]);
 					}
 				//}
+			}
+		}
+		if ('$' in this.readers && 'r' in response) {
+			if (typeof this.readers.$[0] === 'function') {
+				callback = this.readers.$[0];
+				if (err) {
+					callback(err);
+				} else {
+					callback(null, [key, r[key]]);
+				}
 			}
 		}
 	}
@@ -634,6 +644,29 @@ G2.prototype.quit = function() {
 }
 
 G2.prototype.get = function(key, callback) {
+	if (key === '$') {
+		var r = {};
+		var cb = function(err, results) {
+			if (err) {
+				callback(err);
+			}
+			if (results && results.length) {
+				log.info(JSON.stringify({results: results}));
+				r[results[0]] = results[1];
+			}
+		}.bind(this);
+		this.readers.$ = [cb];
+		this.command({$: null}, cb);
+
+		setTimeout(function() {
+			this.readers.$ = [];
+			callback(null, r)
+		}.bind(this), 2000);
+
+		return;
+	}
+
+
 	var keys;
 	if(key instanceof Array) {
 		keys = key;
@@ -642,15 +675,15 @@ G2.prototype.get = function(key, callback) {
 		is_array = false;
 		keys = [key];
 	}
-	async.map(keys,
 
+	async.map(keys,
 		// Function called for each item in the keys array
 		function(k, cb) {
 			cb = cb.bind(this);
 			cmd = {};
 			cmd[k] = null;
 
-			if(k in this.readers) {
+			if (k in this.readers) {
 				this.readers[k].push(cb);
 			} else {
 				this.readers[k] = [cb];
@@ -658,11 +691,11 @@ G2.prototype.get = function(key, callback) {
 
 			// Ensure that an errback is called if the data isn't read out
 			setTimeout(function() {
-				if(k in this.readers) {
+				if (k in this.readers) {
 						callbacks = this.readers[k];
 						stored_cb = callbacks[callbacks.length-1];
-						if(cb == stored_cb) {
-							if(typeof cb == 'function') {
+						if (cb == stored_cb) {
+							if (typeof cb == 'function') {
 								this.readers[k].shift();
 								cb(new Error("Timeout"), null);
 							}
@@ -674,12 +707,12 @@ G2.prototype.get = function(key, callback) {
 		}.bind(this),
 
 		// Function to call with the list of results
-		function(err, result) {
+		function (err, result) {
 			if(err) {
 				return callback(err, result);
 			} else {
 				// If given an array, return one.  Else, return a single item.
-				if(is_array) {
+				if (is_array) {
 					return callback(err, result);
 				} else {
 					return callback(err, result[0]);
@@ -788,7 +821,7 @@ G2.prototype.runList = function(l, callback) {
 	stringStream.push(null);
 	//stringStream.end()
 	return this.runStream(stringStream);
-}
+};
 
 G2.prototype._createStatePromise = function(states) {
 	// Track the promise created (debug)
@@ -808,36 +841,37 @@ G2.prototype._createStatePromise = function(states) {
 	}
 	this.on('stat', onStat);
 	return deferred.promise;
-}
+};
+
 G2.prototype.waitForState = function(states) {
 	if(!states.length) {
 		states = [states]
 	}
 	return this._createStatePromise(states);
-}
+};
 
 G2.prototype.runStream = function(s) {
 		this._createCycleContext();
 		s.pipe(this.context._stream);
 		return this.context;
-}
+};
 
 G2.prototype.runFile = function(filename) {
 	var st = fs.createReadStream(filename);
 	var ln = new LineNumberer();
 	//return this.runStream(st);
 	return this.runStream(st.pipe(ln));
-}
+};
 
 G2.prototype.runImmediate = function(data) {
 	return this.runString(data);
-}
+};
 
 G2.prototype.prime = function() {
 	log.info("Priming driver (manually)");
 	this._primed = true;
 	this.sendMore();
-}
+};
 
 G2.prototype.sendMore = function() {
 	//log.info("sendMore:   Lines to send: " + this.lines_to_send);
@@ -847,7 +881,7 @@ G2.prototype.sendMore = function() {
 	return;
   }
 	var count = this.command_queue.getLength();
-	if(count) {
+	if (count) {
 		var to_send = count;
 		var codes = this.command_queue.multiDequeue(count)
 		codes.push("");
@@ -855,7 +889,7 @@ G2.prototype.sendMore = function() {
 		this._write(codes.join('\n'), function() {});
 	}
 
-	if(this._primed) {
+	if (this._primed) {
 		var count = this.gcode_queue.getLength();
 		if(this.lines_to_send >= THRESH) {
 				if(count >= THRESH || this._streamDone) {

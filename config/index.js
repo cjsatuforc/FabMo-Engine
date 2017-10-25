@@ -35,8 +35,8 @@ function configureDriver(driver, callback) {
     	log.info("Configuring G2 Driver...");
     	//exports.driver = new G2Config(driver);
 		async.series([
-		function(callback) { exports.driver.init(driver, callback); },
-		function(callback) { exports.driver.configureStatusReports(callback); }
+			function(callback) { exports.driver.init(driver, callback); },
+			function(callback) { exports.driver.configureStatusReports(callback); }
 		],
 		function finished(err, result) {
 			if(err) { callback(err); }

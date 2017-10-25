@@ -14,6 +14,9 @@ The FabMo engine is host software that connects to a G2 motion control platform 
 [API Documentation](http://fabmo.github.io/FabMo-Engine/api)
 
 ## Quick Start
+
+**This needs updated for OS X** - the port is wrong and the data directory is now different.
+
 1. Install nodejs - The officially supported version is v0.12.7  - Newer versions *do not work at this time*
 1. Check out the source code https://github.com/ShopBotTools/FabMo-Engine.git
 1. From inside the source directory, install all of the engine dependencies with `npm install`

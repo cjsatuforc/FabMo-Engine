@@ -120,11 +120,11 @@ Config.prototype.save = function(callback) {
 // For this to work, the Config object has to have a default_config_file and config_file member
 Config.prototype.init = function(callback) {
 		var default_count;
-        var user_count;
-        var default_config_file = this.getDefaultConfigFile();
-        var profile_config_file = this.getProfileConfigFile();
-        var config_file = this.getConfigFile();
-        async.series(
+    var user_count;
+    var default_config_file = this.getDefaultConfigFile();
+    var profile_config_file = this.getProfileConfigFile();
+    var config_file = this.getConfigFile();
+    async.series(
 		[
 			function loadDefault(callback) { this.load(default_config_file, callback); }.bind(this),
 			function loadProfile(callback) { this.load(profile_config_file, callback); }.bind(this),

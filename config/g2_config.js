@@ -14,21 +14,38 @@ util.inherits(G2Config, Config);
 
 G2Config.prototype.init = function(driver, callback) {
 	this.driver = driver;
-	Config.prototype.init.call(this, callback);
+	this.aliases = {};
+	this.loadFromDriver(function(err, values) {
+		if(err) {
+			callback(err);
+		} else {
+			// log.info(JSON.stringify({values: values}));
+			this._cache = values;
+			for (var k1 in values) {
+				if (values.hasOwnProperty(k1)) {
+					var subvalue = values[k1];
+					for (var k2 in subvalue) {
+						if (subvalue.hasOwnProperty(k2)) {
+							if (k1 !== 'sys') {
+								this.aliases[''+k1+k2] = [k1, k2];
+							} else {
+								this.aliases[''+k2] = [k1, k2];
+							}
+						}
+					}
+				}
+			}
+			Config.prototype.init.call(this, callback);
+		}
+	}.bind(this));
 }
 
 G2Config.prototype.changeUnits = function(units, callback) {
 	this.driver.setUnits(units, function(err, data) {
-		if(err) {
+		if (err) {
 			callback(err);
 		} else {
-			this.getFromDriver(function(err, g2_values) {
-				if(err) {
-					callback(err);
-				} else  {
-					this.setMany(g2_values, callback);
-				}
-			}.bind(this));
+			callback(null, data);
 		}
 	}.bind(this));
 }
@@ -40,69 +57,194 @@ function extend(obj, src) {
 		return obj;
 	}
 
-G2Config.prototype.getFromDriver = function(callback) {
-	var keys = Object.keys(this._cache)
-	// TODO call this earlier potentially in config.init()
-	this.driver.get(Object.keys({$:'n'}), function(err, values) {
-		if(err) {
-			callback(err);
-		} else {
-			if(keys.length != values.length) {
-				callback(new Error("Something went wrong when getting values from G2"))
-			} else {
-				var obj = {}
-				for(var i=0; i<keys.length; i++) {
-					obj[keys[i]] = values[i];
-				}
-				callback(null, obj);
-			}
-		}
-	});
-
-	setTimeout(function () {
-		var data = this.driver.schema_data;
-		this._cache.root = {};
-		if (data) {
-			for (var i = 0; i < data.length; i++) {
-				var obj = data[i];
-				this._cache.root = extend(obj, this._cache.root);
-			}
-		}
-	}.bind(this), 10000);
+G2Config.prototype.loadFromDriver = function(callback) {
+	this.driver.get('$', callback);
 }
 
+// override of Config
+// setMany calls update, which then calls this
+G2Config.prototype.set = function(k, v, callback) {
+	if (this.driver) {
+		if (!(k in this._cache)) {
+			if (k in this.aliases) {
+				var alias = this.aliases[k];
+
+				k = alias[0];
+
+				var new_v = {};
+				new_v[alias[1]] = v;
+				v = new_v;
+			}
+		}
+		else if (typeof v === 'object')
+		{
+			// we will call set for each key, and merge them back and return
+			var keys = Object.keys(v);
+			return async.map(
+				keys,
+
+				// Function called for each item in the keys array
+				function(k2, cb) {
+					var v2 = {};
+					v2[k2] = v[k2];
+					this.driver.set(k, v2, cb);
+				}.bind(this),
+
+				// Function to call with the list of results
+				function(err, results) {
+					if (err) {
+						// we lost the association of what triggered the error
+						// no point in trying to return results
+						return callback(err);
+					}
+
+					log.info(JSON.stringify({results: results}));
+					// results should look like:
+					// [
+					// 	{am:1},
+					// 	{vm:1000},
+					// 	...
+					// ]
+					r = {};
+					r[k] = {};
+					var self = this;
+					results.map(function (v2) {
+						Object.keys(v2).map(function (k2) {
+							if (v2.hasOwnProperty(k2)) {
+								r[k][k2] = v2[k2];
+								if (v2[k2] !== null) {
+									self._cache[k][k2] = v2[k2];
+								}
+							}
+						});
+					});
+					log.info(JSON.stringify({_cache: this._cache}));
+				}.bind(this)
+			); // async.map
+
+			// previous line was the return!
+		} // else if (typeof v === 'object')
+
+		this.driver.set(k, v, function(err, data) {
+			log.info(JSON.stringify({KEY: k, DATA: data}));
+			if (typeof data === 'object') {
+				Object.keys(data).map(function (k2) {
+					this._cache[k][k2] = data[k2];
+				}.bind(this));
+			} else {
+				this._cache[k] = data;
+			}
+			log.info(JSON.stringify({_cache2: this._cache}));
+			callback(err, data);
+		}.bind(this));
+	} else {
+		// no driver
+		callback(null);
+	}
+};
+
+// override of Config
+G2Config.prototype.get = function(k_obj) {
+	if (typeof k === 'object') {
+		var v = k_obj;
+		Object.keys(v).map(function (k) {
+			if (v.hasOwnProperty(k) && k in this._cache) {
+				if (typeof v[k] === 'object') {
+					// two-level request
+					Object.keys(v[k]).map(function (k2) {
+						if (v[k].hasOwnProperty(k2) && k2 in this._cache[k]) {
+							if (v[k][k2] === null) {
+								v[k][k2] = this._cache[k][k2];
+							}
+							// don't go deeper, and not' lookup non-null
+							// so, leave it alone
+						}
+					}.bind(this));
+				} else if (v[k] === null) {
+					v[k] = this._cache[k]; // WARNING, we're returning a mutable reference
+					// TODO: make a copy
+				}
+			}
+		}.bind(this));
+
+		return v;
+	}
+
+	var k = k_obj;
+
+	if (k in this._cache) {
+		return this._cache[k];
+	} else {
+		if (k in this.aliases) {
+			var alias = this.aliases[k];
+			if (alias[0] in this._cache && alias[1] in this._cache[alias[0]]) {
+				return this._cache[alias[0]][alias[1]];
+			}
+		}
+	}
+
+	return null;
+};
+
+// override of Config
+G2Config.prototype.has = function(k) {
+	// assuming a string, not a request object here
+	// also, we only have aliases for things we actually have
+	return (k in this._cache) || (k in this.aliases);
+};
+
+// override of Config
+G2Config.prototype.getMany = function(arr) {
+	retval = {};
+	arr.map(function (key) {
+		retval[key] = null;
+	});
+	return this.get(retval);
+};
+
+// override of Config
+// calls update, which then calls set
+G2Config.prototype.setMany = function(data, callback) {
+	this.update(data, function(err, result) {
+		if(callback && typeof callback === 'function') {
+			callback(err, result);
+		} else {
+			log.warn("No callback passed to setMany");
+		}
+		this.emit('change', data);
+	}.bind(this));
+}
+
+// override of Config
+G2Config.prototype.deleteMany = function(keys, callback) {
+	callback(new Error('Cannot delete from the G2 board keys'));
+}
+
+// override of Config
+G2Config.prototype.delete = function(k, callback) {
+	callback(new Error('Cannot delete from the G2 board keys'));
+}
+
+
 // Update the configuration with the data provided (data is just an object with configuration keys/values)
+// call this.set for each key
 G2Config.prototype.update = function(data, callback) {
-	keys = Object.keys(data);
-	// TODO: We can probably replace this with a `setMany()`
+	var keys = Object.keys(data);
 	async.mapSeries(
 		keys,
 		// Call driver.set() for each item in the collection of data that was passed in.
 		function iterator(key, cb) {
-			if(this.driver) {
-				this.driver.set(key, data[key], function(err, data) {
-					cb(null, data);
-				});
-			} else {
-				cb(null);
-			}
+			this.set(key, data[key], cb);
 		}.bind(this),
 		// Update the cache with all the values returned from the hardware
 		function done(err, results) {
-			if(err) { return callback(err); }
-			var retval = {};
-			for(var i=0; i<keys.length; i++) {
-				key = keys[i];
-				value = results[i];
-				this._cache[key] = value;
-				retval[key] = value;
-			}
+			if (err) { return callback(err); }
 
 			this.save(function(err, result) {
-				if(err) {
+				if (err) {
 					callback(err);
 				} else {
-					callback(null, retval);
+					callback(null, result);
 				}
 			}.bind(this));
 		}.bind(this)
