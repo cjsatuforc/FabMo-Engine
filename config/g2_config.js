@@ -19,6 +19,7 @@ G2Config.prototype.init = function(driver, callback) {
 		if(err) {
 			callback(err);
 		} else {
+			this._loaded = true;
 			// log.info(JSON.stringify({values: values}));
 			this._cache = values;
 			for (var k1 in values) {
@@ -35,6 +36,7 @@ G2Config.prototype.init = function(driver, callback) {
 					}
 				}
 			}
+			this.save(function(){});
 			Config.prototype.init.call(this, callback);
 		}
 	}.bind(this));
