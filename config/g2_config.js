@@ -41,11 +41,20 @@ G2Config.prototype.init = function(driver, callback) {
 }
 
 G2Config.prototype.changeUnits = function(units, callback) {
+	var self = this;
 	this.driver.setUnits(units, function(err, data) {
 		if (err) {
 			callback(err);
 		} else {
 			callback(null, data);
+			this.loadFromDriver(function(err, values) {
+				if(err) {
+					callback(err);
+				} else {
+					log.info(JSON.stringify({updated_values: values}));
+					self._cache = values;
+				}
+			}).bind(this);
 		}
 	}.bind(this));
 }
@@ -134,7 +143,7 @@ G2Config.prototype.set = function(k, v, callback) {
 			} else {
 				this._cache[k] = data;
 			}
-			log.info(JSON.stringify({_cache2: this._cache}));
+			// log.info(JSON.stringify({_cache2: this._cache}));
 			callback(err, data);
 		}.bind(this));
 	} else {
