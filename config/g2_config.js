@@ -121,6 +121,7 @@ G2Config.prototype.set = function(k, v, callback) {
 						});
 					});
 					log.info(JSON.stringify({_cache: this._cache}));
+					callback(err, r);
 				}.bind(this)
 			); // async.map
 
@@ -242,13 +243,7 @@ G2Config.prototype.update = function(data, callback) {
 		function done(err, results) {
 			if (err) { return callback(err); }
 
-			this.save(function(err, result) {
-				if (err) {
-					callback(err);
-				} else {
-					callback(null, result);
-				}
-			}.bind(this));
+			this.save(function(){});
 		}.bind(this)
 	);
 };
