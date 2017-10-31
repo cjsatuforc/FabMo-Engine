@@ -91,7 +91,7 @@ G2Config.prototype.set = function(k, v, callback) {
 		{
 			// we will call set for each key, and merge them back and return
 			var keys = Object.keys(v);
-			return async.map(
+			async.map(
 				keys,
 
 				// Function called for each item in the keys array
@@ -129,12 +129,12 @@ G2Config.prototype.set = function(k, v, callback) {
 							}
 						});
 					});
-					log.info(JSON.stringify({_cache: this._cache}));
-					callback(err, r);
+					// log.info(JSON.stringify({arr: r}));
+					callback(null, r);
 				}.bind(this)
 			); // async.map
 
-			// previous line was the return!
+			return;
 		} // else if (typeof v === 'object')
 
 		this.driver.set(k, v, function(err, data) {
@@ -253,6 +253,8 @@ G2Config.prototype.update = function(data, callback) {
 			if (err) { return callback(err); }
 
 			this.save(function(){});
+
+			callback(null, results);
 		}.bind(this)
 	);
 };

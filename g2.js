@@ -544,9 +544,9 @@ G2.prototype.onMessage = function(response) {
 
 	for (var key in r) {
 		if (key in this.readers) {
-			if(typeof this.readers[key][this.readers[key].length-1] === 'function') {
+			callback = this.readers[key].shift();
+			if(typeof callback === 'function') {
 				//if(r[key] !== null) {
-					callback = this.readers[key].shift();
 					if(err) {
 						callback(err);
 					} else {
